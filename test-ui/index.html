@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctor Media Server - Unified Testbed</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --primary: #38bdf8;
+            --student: #4ade80;
+            --teacher: #f472b6;
+            --text: #f8fafc;
+            --warning: #f59e0b;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            padding: 1rem 2rem;
+            background: var(--card);
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: #334155;
+            flex: 1;
+            overflow: hidden;
+        }
+        .panel {
+            background: var(--bg);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+        h2 { margin: 0; display: flex; align-items: center; gap: 0.5rem; }
+        h4 { margin: 0; padding-top: 1rem; border-top: 1px solid #334155; }
+        .student-title { color: var(--student); }
+        .teacher-title { color: var(--teacher); }
+        .mandatory-note { color: var(--warning); font-size: 0.85rem; font-weight: bold; margin-bottom: -1rem; }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            background: #475569;
+            color: white;
+        }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        button.primary { background: var(--primary); color: #000; }
+        button.student { background: var(--student); color: #000; }
+        button.teacher { background: var(--teacher); color: #000; }
+        button.mandatory { background: var(--warning); color: #000; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .video-container {
+            background: #000;
+            aspect-ratio: 16/9;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #334155;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .video-label {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.6);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            z-index: 10;
+        }
+
+        .log-box {
+            background: #000;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            height: 150px;
+            overflow-y: scroll;
+            border: 1px solid #1e293b;
+            color: #94a3b8;
+        }
+        .log-entry { margin-bottom: 4px; border-left: 2px solid transparent; padding-left: 8px; }
+        .log-info { border-left-color: var(--primary); }
+        .log-error { border-left-color: #ef4444; color: #fca5a5; }
+        .log-success { border-left-color: var(--student); color: var(--student); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <strong>Proctor Media Server</strong> 
+        <span style="font-size: 0.8rem; opacity: 0.6; margin-left: 1rem;">v3 SFU Testbed</span>
+    </div>
+    <div id="connection-status" style="font-size: 0.8rem;">
+        Server: <span style="color: #ef4444;">● Offline</span>
+    </div>
+</header>
+
+<div class="container">
+    <!-- STUDENT SIDE -->
+    <div class="panel" id="panel-student">
+        <h2 class="student-title">Student Panel</h2>
+        <div class="mandatory-note">⚠️ Note: Screen Share, Camera, and Mic are MANDATORY for Exams</div>
+        
+        <div class="controls">
+            <button id="join-student" class="student">Join Exam</button>
+            <button id="screen-student" class="mandatory" disabled>Share Screen (Required)</button>
+            <button id="mic-student" class="mandatory" disabled>Start Mic (Required)</button>
+            <button id="cam-student" class="mandatory" disabled>Start Camera (Required)</button>
+        </div>
+
+        <h4>Local Previews</h4>
+        <div id="local-videos-student" class="video-grid"></div>
+
+        <h4>Remote Streams</h4>
+        <div id="remote-videos-student" class="video-grid"></div>
+
+        <div id="log-student" class="log-box"></div>
+    </div>
+
+    <!-- TEACHER SIDE -->
+    <div class="panel" id="panel-teacher">
+        <h2 class="teacher-title">Teacher Panel</h2>
+
+        <div class="controls">
+            <button id="join-teacher" class="teacher">Join Exam</button>
+            <button id="cam-teacher" class="primary" disabled>Share Camera</button>
+            <button id="mic-teacher" class="primary" disabled>Share Mic</button>
+            <button id="screen-teacher" class="primary" disabled>Share Screen</button>
+        </div>
+
+        <h4>Local Previews</h4>
+        <div id="local-videos-teacher" class="video-grid"></div>
+
+        <h4>Remote Streams</h4>
+        <div id="remote-videos-teacher" class="video-grid"></div>
+
+        <div id="log-teacher" class="log-box"></div>
+    </div>
+</div>
+
+<!-- Load Socket.IO from CDN -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<!-- Load Mediasoup-client from locally served browser bundle -->
+<script src="/mediasoup-client.js"></script>
+
+<script>
+    const SERVER_URL = 'http://localhost:4001';
+    const EXAM_ID = 'EX001';
+
+    // --- Heartbeat Status ---
+    const connStatus = document.getElementById('connection-status');
+    setInterval(async () => {
+        try {
+            const res = await fetch(SERVER_URL);
+            if (res.ok) connStatus.innerHTML = 'Server: <span style="color: #4ade80;">● Online</span>';
+        } catch {
+            connStatus.innerHTML = 'Server: <span style="color: #ef4444;">● Offline</span>';
+        }
+    }, 5000);
+
+    function log(box, msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `log-entry log-${type}`;
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    // --- Unified Peer Logic ---
+    async function initPeer(side, identity) {
+        const ui = {
+            btnJoin: document.getElementById(`join-${side}`),
+            btnCam: document.getElementById(`cam-${side}`),
+            btnMic: document.getElementById(`mic-${side}`),
+            btnScreen: document.getElementById(`screen-${side}`),
+            logBox: document.getElementById(`log-${side}`),
+            localGrid: document.getElementById(`local-videos-${side}`),
+            remoteGrid: document.getElementById(`remote-videos-${side}`)
+        };
+
+        ui.btnJoin.disabled = true;
+        log(ui.logBox, `Connecting as ${identity.role}...`);
+
+        const socket = io(SERVER_URL, { auth: identity, transports: ['websocket'] });
+        const device = new mediasoupClient.Device();
+
+        let sendTransport, recvTransport;
+        let camProducer = null, micProducer = null, screenProducer = null;
+        let camStream = null, screenStream = null;
+
+        socket.on('connect_error', (err) => {
+            log(ui.logBox, `Connection Error: ${err.message}`, 'error');
+            ui.btnJoin.disabled = false;
+        });
+
+        await new Promise(res => socket.on('connect', res));
+        log(ui.logBox, `Connected! Socket ID: ${socket.id}`, 'success');
+
+        // 1. Join Exam
+        const { routerRtpCapabilities } = await new Promise(res => socket.emit('join-exam', { rtpCapabilities: {} }, res));
+        log(ui.logBox, 'Loading mediasoup device...');
+        await device.load({ routerRtpCapabilities });
+
+        // 2. Setup Send Transport
+        const sendParams = await new Promise(res => socket.emit('create-transport', { direction: 'send' }, res));
+        sendTransport = device.createSendTransport(sendParams);
+        
+        sendTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+            socket.emit('connect-transport', { transportId: sendTransport.id, dtlsParameters }, (res) => {
+                if (res.error) errback(res.error); else callback();
+            });
+        });
+        
+        sendTransport.on('produce', ({ kind, rtpParameters, appData }, callback, errback) => {
+            socket.emit('produce', { transportId: sendTransport.id, kind, rtpParameters, appData }, (res) => {
+                if (res.error) errback(res.error); else callback({ id: res.producerId });
+            });
+        });
+
+        // 3. Setup Recv Transport
+        const recvParams = await new Promise(res => socket.emit('create-transport', { direction: 'recv' }, res));
+        recvTransport = device.createRecvTransport(recvParams);
+        
+        recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+            socket.emit('connect-transport', { transportId: recvTransport.id, dtlsParameters }, (res) => {
+                if (res.error) errback(res.error); else callback();
+            });
+        });
+
+        log(ui.logBox, 'Transports established.', 'success');
+        
+        // Enable toggles now that we are fully connected
+        ui.btnCam.disabled = false;
+        ui.btnMic.disabled = false;
+        ui.btnScreen.disabled = false;
+
+
+
+        // 4. Consume mapping function
+        const consume = async (producerId, peerId, kind, appData) => {
+            log(ui.logBox, `Consuming ${kind} from ${peerId}...`);
+            const params = await new Promise(res => 
+                socket.emit('consume', { producerId, transportId: recvTransport.id, rtpCapabilities: device.rtpCapabilities }, res)
+            );
+
+            if (params.error) return log(ui.logBox, `Consume error: ${params.error}`, 'error');
+
+            const consumer = await recvTransport.consume(params);
+            
+            // Resume consumer on server
+            await new Promise(res => socket.emit('resume-consumer', { consumerId: consumer.id }, res));
+            
+            // Render media
+            if (kind === 'video') {
+                // Determine if it's screen or camera based on appData
+                const isScreen = appData && appData.source === 'screen';
+                const postfix = isScreen ? '-screen' : '-cam';
+                const elementId = `remote-${side}-${peerId}${postfix}`;
+
+                let container = document.getElementById(elementId);
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = elementId;
+                    container.className = 'video-container';
+                    
+                    const vid = document.createElement('video');
+                    vid.autoplay = true; 
+                    vid.playsinline = true;
+                    
+                    const label = document.createElement('div');
+                    label.className = 'video-label'; 
+                    label.innerText = `Peer: ${peerId} (${isScreen ? 'Screen' : 'Camera'})`;
+                    
+                    container.appendChild(vid); 
+                    container.appendChild(label);
+                    ui.remoteGrid.appendChild(container);
+                }
+                const video = container.querySelector('video');
+                const stream = new MediaStream();
+                stream.addTrack(consumer.track);
+                video.srcObject = stream;
+            } else if (kind === 'audio') {
+                const audio = document.createElement('audio');
+                audio.autoplay = true;
+                const stream = new MediaStream();
+                stream.addTrack(consumer.track);
+                audio.srcObject = stream;
+                document.body.appendChild(audio); 
+            }
+        };
+
+        // 5. Subscribe to newcomers
+        socket.on('new-producer', async ({ producerId, peerId, kind, appData }) => {
+            await consume(producerId, peerId, kind, appData);
+        });
+
+        // 6. Fetch existing producers
+        socket.emit('get-producers', {}, async (producers) => {
+            if (!Array.isArray(producers)) return;
+            for (const p of producers) {
+                await consume(p.producerId, p.peerId, p.kind, p.appData);
+            }
+        });
+
+        // --- Hardware Helper to set the local video elements ---
+        function updateLocalVideo() {
+            ui.localGrid.innerHTML = ''; 
+            
+            if (camStream && camStream.getVideoTracks().length > 0) {
+                const c = document.createElement('div');
+                c.className = 'video-container';
+                const v = document.createElement('video');
+                v.autoplay = true; v.muted = true; v.playsinline = true;
+                v.srcObject = new MediaStream([camStream.getVideoTracks()[0]]);
+                const l = document.createElement('div');
+                l.className = 'video-label'; l.innerText = `Local Camera`;
+                c.appendChild(v); c.appendChild(l);
+                ui.localGrid.appendChild(c);
+            }
+            if (screenStream && screenStream.getVideoTracks().length > 0) {
+                const c = document.createElement('div');
+                c.className = 'video-container';
+                const v = document.createElement('video');
+                v.autoplay = true; v.muted = true; v.playsinline = true;
+                v.srcObject = new MediaStream([screenStream.getVideoTracks()[0]]);
+                const l = document.createElement('div');
+                l.className = 'video-label'; l.innerText = `Local Screen`;
+                c.appendChild(v); c.appendChild(l);
+                ui.localGrid.appendChild(c);
+            }
+        }
+
+        // --- Hardware Toggles ---
+
+        ui.btnCam.onclick = async () => {
+            if (camProducer) {
+                // Stop camera
+                camProducer.close();
+                camProducer = null;
+                camStream.getTracks().forEach(t => t.stop());
+                camStream = null;
+                updateLocalVideo();
+                
+                ui.btnCam.innerText = side === 'student' ? 'Start Camera (Required)' : 'Share Camera';
+                ui.btnCam.style.background = '';
+                ui.btnCam.classList.remove('active');
+                log(ui.logBox, 'Camera stopped.');
+            } else {
+                // Start camera
+                try {
+                    camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 } });
+                    const track = camStream.getVideoTracks()[0];
+                    updateLocalVideo();
+                    
+                    camProducer = await sendTransport.produce({ track, appData: { source: 'camera' } });
+                    
+                    ui.btnCam.innerText = 'Stop Camera';
+                    ui.btnCam.style.background = '#ef4444'; // Red for stop
+                    ui.btnCam.classList.add('active');
+                    log(ui.logBox, 'Camera transmitting.', 'success');
+
+                    track.onended = () => {
+                        if (camProducer) {
+                            camProducer.close();
+                            camProducer = null;
+                            camStream = null;
+                            updateLocalVideo();
+                            ui.btnCam.innerText = side === 'student' ? 'Start Camera (Required)' : 'Share Camera';
+                            ui.btnCam.style.background = '';
+                            ui.btnCam.classList.remove('active');
+                        }
+                    };
+                } catch (e) {
+                    log(ui.logBox, `Cam Error: ${e.message}`, 'error');
+                }
+            }
+        };
+
+        ui.btnScreen.onclick = async () => {
+            if (screenProducer) {
+                // Stop screen
+                screenProducer.close();
+                screenProducer = null;
+                screenStream.getTracks().forEach(t => t.stop());
+                screenStream = null;
+                updateLocalVideo();
+                
+                ui.btnScreen.innerText = side === 'student' ? 'Share Screen (Required)' : 'Share Screen';
+                ui.btnScreen.style.background = '';
+                log(ui.logBox, 'Screen sharing stopped.');
+            } else {
+                // Start screen
+                try {
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' } });
+                    const track = screenStream.getVideoTracks()[0];
+                    updateLocalVideo();
+                    
+                    screenProducer = await sendTransport.produce({ track, appData: { source: 'screen' } });
+                    
+                    ui.btnScreen.innerText = 'Stop Screen Share';
+                    ui.btnScreen.style.background = '#ef4444'; // Red for stop
+                    log(ui.logBox, 'Screen transmitting.', 'success');
+
+                    track.onended = () => {
+                        if (screenProducer) {
+                            screenProducer.close();
+                            screenProducer = null;
+                            screenStream = null;
+                            updateLocalVideo();
+                            ui.btnScreen.innerText = side === 'student' ? 'Share Screen (Required)' : 'Share Screen';
+                            ui.btnScreen.style.background = '';
+                        }
+                    };
+                } catch (e) {
+                    log(ui.logBox, `Screen Error: ${e.message}`, 'error');
+                }
+            }
+        };
+
+        ui.btnMic.onclick = async () => {
+            if (micProducer) {
+                // Stop mic
+                micProducer.close();
+                micProducer = null;
+                
+                ui.btnMic.innerText = side === 'student' ? 'Start Mic (Required)' : 'Share Mic';
+                ui.btnMic.style.background = '';
+                log(ui.logBox, 'Mic stopped.');
+            } else {
+                // Start mic
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const track = stream.getAudioTracks()[0];
+                    
+                    micProducer = await sendTransport.produce({ track, appData: { source: 'mic' } });
+                    
+                    ui.btnMic.innerText = 'Stop Mic';
+                    ui.btnMic.style.background = '#ef4444'; // Red for stop
+                    log(ui.logBox, 'Mic transmitting.', 'success');
+                    
+                    track.onended = () => {
+                        if (micProducer) {
+                            micProducer.close();
+                            micProducer = null;
+                            ui.btnMic.innerText = side === 'student' ? 'Start Mic (Required)' : 'Share Mic';
+                            ui.btnMic.style.background = '';
+                        }
+                    };
+                } catch (e) {
+                    log(ui.logBox, `Mic Error: ${e.message}`, 'error');
+                }
+            }
+        };
+    }
+
+    // Attach click events to invoke the unified logic
+    document.getElementById('join-student').onclick = () => {
+        initPeer('student', { studentId: 'STU001', examId: EXAM_ID, role: 'student' });
+    };
+
+    document.getElementById('join-teacher').onclick = () => {
+        initPeer('teacher', { studentId: 'TEACHER01', examId: EXAM_ID, role: 'teacher' });
+    };
+
+</script>
+</body>
+</html>
