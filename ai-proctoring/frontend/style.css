@@ -1,0 +1,268 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0f17;
+  --panel: rgba(17, 24, 39, 0.9);
+  --panel-border: rgba(255, 255, 255, 0.14);
+  --text: #f3f4f6;
+  --muted: #d1d5db;
+  --accent: #111827;
+  --accent-strong: #111827;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #f59e0b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Segoe UI, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.exam-screen {
+  position: relative;
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+#cameraPreview {
+  position: relative;
+  width: 75vw;
+  height: 100%;
+  object-fit: cover;
+  background: #030712;
+}
+
+.proctor-panel {
+  position: relative;
+  width: 25vw;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--panel-border);
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.subtitle,
+.hint {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.warning-box {
+  margin: 18px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(134, 239, 172, 0.45);
+  background: rgba(15, 118, 110, 0.2);
+  color: #bbf7d0;
+  font-weight: 700;
+}
+
+.warning-box.alert {
+  border-color: rgba(252, 165, 165, 0.55);
+  background: rgba(127, 29, 29, 0.3);
+  color: #fecaca;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0;
+}
+
+button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f3f4f6;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.text-button {
+  background: transparent;
+  color: #e5e7eb;
+  padding: 0;
+  border: 0;
+}
+
+.status-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 14px 16px;
+  border-radius: 8px;
+}
+
+.label {
+  font-weight: 600;
+}
+
+.badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.badge.idle,
+.badge.waiting {
+  background: rgba(255, 251, 235, 0.2);
+  color: #fcd34d;
+}
+
+.badge.active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.badge.detected {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fca5a5;
+}
+
+.badge.error {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fecaca;
+}
+
+.meter-block {
+  margin-bottom: 24px;
+}
+
+.meter-block label {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+progress {
+  width: 100%;
+  height: 18px;
+  appearance: none;
+}
+
+progress::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+
+progress::-webkit-progress-value {
+  background: #f59e0b;
+  border-radius: 999px;
+}
+
+progress::-moz-progress-bar {
+  background: #f59e0b;
+  border-radius: 999px;
+}
+
+.events {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 18px;
+}
+
+.events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.events-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.log-list {
+  margin: 14px 0 0;
+  padding-left: 20px;
+}
+
+.log-list li {
+  margin-bottom: 10px;
+  color: #f3f4f6;
+}
+
+.placeholder {
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .proctor-panel {
+    width: 100%;
+    height: 55%;
+    border-left: 0;
+    border-top: 1px solid var(--panel-border);
+    border-radius: 12px 12px 0 0;
+  }
+
+  #cameraPreview {
+    width: 100%;
+    height: 45%;
+  }
+
+  .controls {
+    flex-direction: column;
+  }
+
+  .status-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

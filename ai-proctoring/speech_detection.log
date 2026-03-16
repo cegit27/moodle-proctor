@@ -1,0 +1,168 @@
+2026-03-11 16:55:41,769 - INFO - Starting speech monitor.
+2026-03-11 16:55:43,126 - INFO - Calibrating microphone for ambient noise...
+2026-03-11 16:55:44,138 - INFO - Microphone calibration complete.
+2026-03-11 16:56:26,191 - INFO - Starting speech monitor.
+2026-03-11 16:56:26,654 - INFO - Calibrating microphone for ambient noise...
+2026-03-11 16:56:27,659 - INFO - Microphone calibration complete.
+2026-03-11 16:56:42,747 - INFO - Starting speech monitor.
+2026-03-11 16:56:43,079 - INFO - Calibrating microphone for ambient noise...
+2026-03-11 16:56:44,082 - INFO - Microphone calibration complete.
+2026-03-11 17:01:45,371 - WARNING - Speech detected at 2026-03-11T17:01:45
+2026-03-11 17:01:45,371 - WARNING - Speech detected at 2026-03-11T17:01:45
+2026-03-11 17:01:45,377 - INFO - Speech event sent to backend.
+2026-03-11 17:01:45,378 - INFO - Speech event sent to backend.
+2026-03-11 17:11:26,574 - WARNING - Speech detected at 2026-03-11T17:11:26
+2026-03-11 17:11:26,576 - WARNING - Speech detected at 2026-03-11T17:11:26
+2026-03-11 17:11:26,582 - INFO - Speech event sent to backend.
+2026-03-11 17:11:26,587 - INFO - Speech event sent to backend.
+2026-03-11 17:11:29,884 - WARNING - Speech detected at 2026-03-11T17:11:29
+2026-03-11 17:11:29,907 - INFO - Speech event sent to backend.
+2026-03-11 17:11:29,932 - WARNING - Speech detected at 2026-03-11T17:11:29
+2026-03-11 17:11:29,938 - INFO - Speech event sent to backend.
+2026-03-11 17:11:34,823 - WARNING - Speech detected at 2026-03-11T17:11:34
+2026-03-11 17:11:34,823 - WARNING - Speech detected at 2026-03-11T17:11:34
+2026-03-11 17:11:34,902 - INFO - Speech event sent to backend.
+2026-03-11 17:11:34,933 - INFO - Speech event sent to backend.
+2026-03-11 17:11:36,858 - WARNING - Speech detected at 2026-03-11T17:11:36
+2026-03-11 17:11:36,866 - INFO - Speech event sent to backend.
+2026-03-11 17:11:59,594 - WARNING - Speech detected at 2026-03-11T17:11:59
+2026-03-11 17:11:59,620 - INFO - Speech event sent to backend.
+2026-03-11 17:13:26,351 - WARNING - Speech detected at 2026-03-11T17:13:26
+2026-03-11 17:13:26,366 - WARNING - Speech detected at 2026-03-11T17:13:26
+2026-03-11 17:13:26,368 - INFO - Speech event sent to backend.
+2026-03-11 17:13:26,370 - INFO - Speech event sent to backend.
+2026-03-11 17:13:43,764 - WARNING - Speech detected at 2026-03-11T17:13:43
+2026-03-11 17:13:43,774 - INFO - Speech event sent to backend.
+2026-03-11 17:14:08,627 - WARNING - Speech detected at 2026-03-11T17:14:08
+2026-03-11 17:14:08,627 - WARNING - Speech detected at 2026-03-11T17:14:08
+2026-03-11 17:14:08,651 - INFO - Speech event sent to backend.
+2026-03-11 17:14:08,651 - INFO - Speech event sent to backend.
+2026-03-11 17:14:40,016 - WARNING - Speech detected at 2026-03-11T17:14:40
+2026-03-11 17:14:40,107 - INFO - Speech event sent to backend.
+2026-03-11 17:15:16,793 - WARNING - Speech detected at 2026-03-11T17:15:16
+2026-03-11 17:15:16,809 - INFO - Speech event sent to backend.
+2026-03-11 17:15:16,885 - WARNING - Speech detected at 2026-03-11T17:15:16
+2026-03-11 17:15:16,888 - INFO - Speech event sent to backend.
+2026-03-11 17:16:02,335 - ERROR - Speech recognition service error: recognition connection failed: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-03-11 17:16:02,360 - ERROR - Speech recognition service error: recognition connection failed: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-03-11 19:26:04,773 - WARNING - Speech detected at 2026-03-11T19:26:04
+2026-03-11 19:26:04,794 - INFO - Speech event sent to backend.
+2026-03-11 19:26:04,800 - WARNING - Speech detected at 2026-03-11T19:26:04
+2026-03-11 19:26:04,807 - INFO - Speech event sent to backend.
+2026-03-11 19:26:18,203 - WARNING - Speech detected at 2026-03-11T19:26:18
+2026-03-11 19:26:18,223 - INFO - Speech event sent to backend.
+2026-03-11 19:26:23,064 - WARNING - Speech detected at 2026-03-11T19:26:23
+2026-03-11 19:26:23,111 - INFO - Speech event sent to backend.
+2026-03-11 19:27:23,152 - WARNING - Speech detected at 2026-03-11T19:27:23
+2026-03-11 19:27:23,172 - INFO - Speech event sent to backend.
+2026-03-11 19:27:23,251 - WARNING - Speech detected at 2026-03-11T19:27:23
+2026-03-11 19:27:23,264 - INFO - Speech event sent to backend.
+2026-03-11 19:27:27,566 - WARNING - Speech detected at 2026-03-11T19:27:27
+2026-03-11 19:27:27,572 - INFO - Speech event sent to backend.
+2026-03-11 19:27:30,827 - WARNING - Speech detected at 2026-03-11T19:27:30
+2026-03-11 19:27:30,833 - INFO - Speech event sent to backend.
+2026-03-11 19:31:10,343 - WARNING - Speech detected at 2026-03-11T19:31:10
+2026-03-11 19:31:10,349 - WARNING - Speech detected at 2026-03-11T19:31:10
+2026-03-11 19:31:10,397 - INFO - Speech event sent to backend.
+2026-03-11 19:31:10,407 - INFO - Speech event sent to backend.
+2026-03-11 19:31:16,207 - WARNING - Speech detected at 2026-03-11T19:31:16
+2026-03-11 19:31:16,229 - INFO - Speech event sent to backend.
+2026-03-11 19:35:36,248 - WARNING - [2026-03-11T20:00:00] source=frontend event=speech_detected message=frontend full-screen test warning
+2026-03-11 19:37:07,404 - WARNING - Speech detected at 2026-03-11T19:37:07
+2026-03-11 19:37:07,410 - WARNING - [2026-03-11T19:37:07] source=unknown event=speech_detected message=hello
+2026-03-11 19:37:07,412 - INFO - Speech event sent to backend.
+2026-03-11 19:37:10,011 - WARNING - Speech detected at 2026-03-11T19:37:10
+2026-03-11 19:37:10,017 - WARNING - [2026-03-11T19:37:10] source=unknown event=speech_detected message=hello
+2026-03-11 19:37:10,019 - INFO - Speech event sent to backend.
+2026-03-11 19:37:14,940 - WARNING - Speech detected at 2026-03-11T19:37:14
+2026-03-11 19:37:14,962 - WARNING - [2026-03-11T19:37:14] source=unknown event=speech_detected message=hello hello
+2026-03-11 19:37:14,964 - INFO - Speech event sent to backend.
+2026-03-11 19:37:15,217 - WARNING - Speech detected at 2026-03-11T19:37:15
+2026-03-11 19:37:15,223 - WARNING - [2026-03-11T19:37:15] source=unknown event=speech_detected message=hello hello hello hello
+2026-03-11 19:37:15,224 - INFO - Speech event sent to backend.
+2026-03-11 19:37:18,357 - WARNING - Speech detected at 2026-03-11T19:37:18
+2026-03-11 19:37:18,359 - WARNING - Speech detected at 2026-03-11T19:37:18
+2026-03-11 19:37:18,402 - WARNING - [2026-03-11T19:37:18] source=unknown event=speech_detected message=hello hello
+2026-03-11 19:37:18,403 - INFO - Speech event sent to backend.
+2026-03-11 19:37:18,407 - WARNING - [2026-03-11T19:37:18] source=unknown event=speech_detected message=hello hello
+2026-03-11 19:37:18,407 - INFO - Speech event sent to backend.
+2026-03-11 19:37:29,964 - WARNING - Speech detected at 2026-03-11T19:37:29
+2026-03-11 19:37:30,013 - WARNING - Speech detected at 2026-03-11T19:37:30
+2026-03-11 19:37:30,074 - WARNING - [2026-03-11T19:37:29] source=unknown event=speech_detected message=hello
+2026-03-11 19:37:30,075 - INFO - Speech event sent to backend.
+2026-03-11 19:37:30,092 - WARNING - [2026-03-11T19:37:30] source=unknown event=speech_detected message=hello
+2026-03-11 19:37:30,094 - INFO - Speech event sent to backend.
+2026-03-11 19:37:50,928 - WARNING - Speech detected at 2026-03-11T19:37:50
+2026-03-11 19:37:50,955 - WARNING - [2026-03-11T19:37:50] source=unknown event=speech_detected message=26
+2026-03-11 19:37:50,956 - INFO - Speech event sent to backend.
+2026-03-11 19:37:51,000 - WARNING - Speech detected at 2026-03-11T19:37:50
+2026-03-11 19:37:51,018 - WARNING - [2026-03-11T19:37:50] source=unknown event=speech_detected message=26
+2026-03-11 19:37:51,019 - INFO - Speech event sent to backend.
+2026-03-11 19:38:12,373 - WARNING - Speech detected at 2026-03-11T19:38:12
+2026-03-11 19:38:12,393 - WARNING - [2026-03-11T19:38:12] source=unknown event=speech_detected message=April 2020 exam
+2026-03-11 19:38:12,395 - INFO - Speech event sent to backend.
+2026-03-11 19:38:12,513 - WARNING - Speech detected at 2026-03-11T19:38:12
+2026-03-11 19:38:12,534 - WARNING - [2026-03-11T19:38:12] source=unknown event=speech_detected message=Apna 2020 exam
+2026-03-11 19:38:12,535 - INFO - Speech event sent to backend.
+2026-03-11 19:38:15,852 - WARNING - Speech detected at 2026-03-11T19:38:15
+2026-03-11 19:38:15,856 - WARNING - [2026-03-11T19:38:15] source=unknown event=speech_detected message=happy 23
+2026-03-11 19:38:15,858 - INFO - Speech event sent to backend.
+2026-03-11 19:38:16,439 - WARNING - Speech detected at 2026-03-11T19:38:16
+2026-03-11 19:38:16,463 - WARNING - [2026-03-11T19:38:16] source=unknown event=speech_detected message=23
+2026-03-11 19:38:16,464 - INFO - Speech event sent to backend.
+2026-03-11 19:40:16,983 - WARNING - Speech detected at 2026-03-11T19:40:16
+2026-03-11 19:40:17,003 - WARNING - [2026-03-11T19:40:16] source=unknown event=speech_detected message=answer the call
+2026-03-11 19:40:17,004 - INFO - Speech event sent to backend.
+2026-03-11 20:26:36,895 - ERROR - Speech recognition service error: recognition connection failed: [Errno 11001] getaddrinfo failed
+2026-03-11 20:26:36,896 - ERROR - Speech recognition service error: recognition connection failed: [Errno 11001] getaddrinfo failed
+2026-03-11 20:26:39,988 - ERROR - Speech recognition service error: recognition connection failed: [Errno 11001] getaddrinfo failed
+2026-03-11 20:26:39,988 - ERROR - Speech recognition service error: recognition connection failed: [Errno 11001] getaddrinfo failed
+2026-03-11 20:53:02,392 - WARNING - Speech detected at 2026-03-11T20:53:02
+2026-03-11 20:53:02,394 - WARNING - [2026-03-11T20:53:02] source=unknown event=speech_detected message=Hassan Hassan
+2026-03-11 20:53:02,394 - INFO - Speech event sent to backend.
+2026-03-11 20:53:06,293 - WARNING - Speech detected at 2026-03-11T20:53:06
+2026-03-11 20:53:06,311 - WARNING - [2026-03-11T20:53:06] source=unknown event=speech_detected message=please
+2026-03-11 20:53:06,312 - INFO - Speech event sent to backend.
+2026-03-11 20:53:08,309 - WARNING - Speech detected at 2026-03-11T20:53:08
+2026-03-11 20:53:08,310 - WARNING - [2026-03-11T20:53:08] source=unknown event=speech_detected message=please
+2026-03-11 20:53:08,311 - INFO - Speech event sent to backend.
+2026-03-11 21:00:59,722 - WARNING - Speech detected at 2026-03-11T21:00:59
+2026-03-11 21:00:59,726 - WARNING - [2026-03-11T21:00:59] source=unknown event=speech_detected message=bottom
+2026-03-11 21:00:59,726 - INFO - Speech event sent to backend.
+2026-03-11 21:18:10,635 - WARNING - Speech detected at 2026-03-11T21:18:10
+2026-03-11 21:18:10,639 - WARNING - [2026-03-11T21:18:10] source=unknown event=speech_detected message=hello
+2026-03-11 21:18:10,639 - INFO - Speech event sent to backend.
+2026-03-11 21:24:46,560 - WARNING - Speech detected at 2026-03-11T21:24:46
+2026-03-11 21:24:46,864 - WARNING - [2026-03-11T21:24:46] source=unknown event=speech_detected message=software good software
+2026-03-11 21:24:46,865 - INFO - Speech event sent to backend.
+2026-03-11 21:34:09,018 - WARNING - Speech detected at 2026-03-11T21:34:09
+2026-03-11 21:34:09,201 - WARNING - [2026-03-11T21:34:09] source=unknown event=speech_detected message=chicken biryani
+2026-03-11 21:34:09,202 - INFO - Speech event sent to backend.
+2026-03-11 21:34:19,689 - WARNING - Speech detected at 2026-03-11T21:34:19
+2026-03-11 21:34:19,694 - WARNING - [2026-03-11T21:34:19] source=unknown event=speech_detected message=chicken biryani
+2026-03-11 21:34:19,694 - INFO - Speech event sent to backend.
+2026-03-11 21:38:01,705 - ERROR - Speech recognition service error: recognition connection failed: [Errno 11001] getaddrinfo failed
+2026-03-12 00:51:00,561 - WARNING - Speech detected at 2026-03-12T00:51:00
+2026-03-12 00:51:00,570 - WARNING - [2026-03-12T00:51:00] source=unknown event=speech_detected message=hello hello
+2026-03-12 00:51:00,573 - INFO - Speech event sent to backend.
+2026-03-12 00:51:00,583 - WARNING - Speech detected at 2026-03-12T00:51:00
+2026-03-12 00:51:00,589 - WARNING - [2026-03-12T00:51:00] source=unknown event=speech_detected message=hello hello
+2026-03-12 00:51:00,590 - INFO - Speech event sent to backend.
+2026-03-12 00:53:59,011 - WARNING - Speech detected at 2026-03-12T00:53:59
+2026-03-12 00:53:59,032 - WARNING - Speech detected at 2026-03-12T00:53:59
+2026-03-12 00:53:59,040 - WARNING - [2026-03-12T00:53:59] source=unknown event=speech_detected message=hu r u
+2026-03-12 00:53:59,042 - WARNING - [2026-03-12T00:53:59] source=unknown event=speech_detected message=hu r u
+2026-03-12 00:53:59,042 - INFO - Speech event sent to backend.
+2026-03-12 00:53:59,044 - INFO - Speech event sent to backend.
+2026-03-12 00:55:05,470 - WARNING - Speech detected at 2026-03-12T00:55:05
+2026-03-12 00:55:05,473 - WARNING - Speech detected at 2026-03-12T00:55:05
+2026-03-12 00:55:05,476 - WARNING - [2026-03-12T00:55:05] source=unknown event=speech_detected message=hello hello
+2026-03-12 00:55:05,478 - INFO - Speech event sent to backend.
+2026-03-12 00:55:05,495 - WARNING - [2026-03-12T00:55:05] source=unknown event=speech_detected message=hello hello
+2026-03-12 00:55:05,496 - INFO - Speech event sent to backend.
+2026-03-12 00:55:28,502 - WARNING - Speech detected at 2026-03-12T00:55:28
+2026-03-12 00:55:28,507 - WARNING - [2026-03-12T00:55:28] source=unknown event=speech_detected message=chicken biryani
+2026-03-12 00:55:28,508 - INFO - Speech event sent to backend.
+2026-03-12 00:55:28,881 - WARNING - Speech detected at 2026-03-12T00:55:28
+2026-03-12 00:55:28,901 - WARNING - [2026-03-12T00:55:28] source=unknown event=speech_detected message=chicken biryani
+2026-03-12 00:55:28,903 - INFO - Speech event sent to backend.

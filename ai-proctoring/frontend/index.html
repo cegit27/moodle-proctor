@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online Exam Proctoring</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="exam-screen">
+    <video id="cameraPreview" autoplay playsinline muted></video>
+
+    <aside class="proctor-panel">
+      <p class="eyebrow">Online Examination</p>
+      <h1>Live Proctoring</h1>
+      <p class="subtitle">
+        Keep your microphone and camera on. Do not speak during the exam.
+      </p>
+
+      <div class="warning-box" id="warningBox" aria-live="polite">
+        Monitoring is ready. Keep silent during the exam.
+      </div>
+
+      <div class="controls">
+        <button id="startButton" class="primary">Start Monitoring</button>
+        <button id="stopButton" class="secondary" disabled>Stop</button>
+      </div>
+
+      <div class="status-panel">
+        <div class="status-row">
+          <span class="label">Microphone</span>
+          <span id="micStatus" class="badge idle">Not started</span>
+        </div>
+        <div class="status-row">
+          <span class="label">Camera</span>
+          <span id="cameraStatus" class="badge idle">Not started</span>
+        </div>
+        <div class="status-row">
+          <span class="label">Voice status</span>
+          <span id="voiceStatus" class="badge waiting">Waiting</span>
+        </div>
+      </div>
+
+      <div class="meter-block">
+        <label for="audioLevel">Audio level</label>
+        <progress id="audioLevel" max="100" value="0"></progress>
+      </div>
+
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
