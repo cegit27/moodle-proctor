@@ -1,0 +1,43 @@
+body{
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:#1e1e2f;
+    color:white;
+    font-family:Arial;
+    
+    }
+    
+    .login-box{
+    
+    background:#2e2e3e;
+    padding:40px;
+    border-radius:10px;
+    width:300px;
+    text-align:center;
+    
+    }
+    
+    input{
+    
+    width:100%;
+    padding:10px;
+    margin:10px 0;
+    border:none;
+    border-radius:5px;
+    
+    }
+    
+    button{
+    
+    width:100%;
+    padding:10px;
+    background:#4CAF50;
+    border:none;
+    color:white;
+    cursor:pointer;
+    border-radius:5px;
+    
+    }
