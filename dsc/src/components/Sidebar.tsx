@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import { FiActivity, FiAlertTriangle, FiBarChart2, FiLogOut, FiMonitor, FiSettings, FiUsers } from "react-icons/fi";
 
@@ -22,6 +22,12 @@ const navItems: NavItem[] = [
 
 export const Sidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    // TODO: Add real logout logic here (invalidate session, clear tokens, etc.)
+    router.push("/login");
+  };
 
   return (
     <aside className="hidden lg:flex lg:flex-col w-64 glass-surface px-4 py-6 gap-6">
@@ -58,7 +64,11 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      <button className="mt-auto flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="mt-auto flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+      >
         <FiLogOut className="h-4 w-4" />
         <span>Logout</span>
       </button>

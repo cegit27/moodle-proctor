@@ -72,7 +72,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-accent.blue px-4 py-2.5 text-sm font-medium text-slate-950 hover:bg-sky-400 transition-colors"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-sky-400 px-4 py-2.5 text-sm font-medium text-slate-950 hover:bg-sky-300 transition-colors"
             >
               Login as Teacher
             </button>
