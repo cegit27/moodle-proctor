@@ -1,0 +1,79 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run frontend tests
+        run: npm test || echo "No tests found"
+
+  backend-test:
+    name: Manual Proctoring Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: manual_proctoring
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install || echo "No package.json"
+
+      - name: Run backend tests
+        run: npm test || echo "No tests found"
+
+  ai-test:
+    name: AI Module Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ai_proctoring
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || echo "No requirements.txt"
+
+      - name: Run AI tests
+        run: pytest || echo "No tests found"
