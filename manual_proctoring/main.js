@@ -119,7 +119,7 @@ function matchesBlockedPattern(processName, blockedPatterns) {
   .toLowerCase()
   .replace(/\.exe$/i, "");
 
- return blockedPatterns.some(pattern => normalizedProcessName.includes(pattern));
+ return blockedPatterns.some(pattern => normalizedProcessName === pattern || normalizedProcessName.startsWith(pattern + "-"));
 }
 
 async function scanAndBlockNetworkApps() {
