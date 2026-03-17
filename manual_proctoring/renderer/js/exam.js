@@ -375,6 +375,7 @@ async function startCamera() {
 
     video.srcObject = stream
     setExamStatus('Camera connected. Good luck!', 'info')
+    startFrameCapture(video)
     return true
   } catch (error) {
     console.error('Camera error:', error)
@@ -382,6 +383,113 @@ async function startCamera() {
     return false
   }
 }
+
+// Violation type mapping — keys match what your backend detectors return
+const PROCTORING_VIOLATION_MAP = {
+  // existing
+  'No face detected':              { type: 'face_absent',        detail: 'Candidate face not visible in camera.' },
+  'Multiple faces detected':       { type: 'multiple_faces',     detail: 'More than one face detected in frame.' },
+  'Phone detected':                { type: 'phone_detected',     detail: 'A phone was detected in the camera frame.' },
+  'Looking away from screen':      { type: 'gaze_away',          detail: 'Candidate gaze directed away from screen.' },
+  'Talking detected':              { type: 'lip_movement',       detail: 'Lip movement suggesting speech detected.' },
+  'Camera may be blocked':         { type: 'camera_blocked',     detail: 'Lighting anomaly — camera may be covered.' },
+  // newly wired
+  'Abnormal blink rate detected':  { type: 'blink_anomaly',      detail: 'Unusual blink pattern detected.' },
+  'Lighting too dark — face not visible': { type: 'lighting_dark', detail: 'Camera feed too dark to verify candidate.' },
+  'Background movement detected':  { type: 'background_motion',  detail: 'Unexpected movement detected in background.' },
+  'Identity could not be verified':{ type: 'identity_mismatch',  detail: 'Candidate face does not match registered identity.' },
+}
+
+// Tracks which violation types are currently "active" so we don't spam
+// reportViolation on every frame — only fires when a violation first appears
+// or re-appears after clearing.
+const activeViolations = new Set()
+
+function startFrameCapture(video) {
+  const canvas = document.createElement('canvas')
+  const ctx    = canvas.getContext('2d')
+
+  const WS_URL = (window.PROCTOR_WS_URL) || 'ws://localhost:8000/proctor'
+  let ws       = null
+  let intervalId = null
+
+  function connect() {
+    ws = new WebSocket(WS_URL)
+
+    ws.onopen = () => {
+      console.log('[Proctor] WebSocket connected')
+      intervalId = setInterval(sendFrame, 1000 / 5)  // 5 fps
+    }
+
+    ws.onmessage = (event) => {
+      if (!examStarted || examSubmitted) return
+
+      let result
+      try {
+        result = JSON.parse(event.data)
+      } catch {
+        return
+      }
+
+      const incomingViolations = new Set(result.violations || [])
+
+      // ── Report violations that are newly active this frame ──────────────
+      for (const message of incomingViolations) {
+        if (!activeViolations.has(message)) {
+          // First time seeing this violation — report it
+          const mapped = PROCTORING_VIOLATION_MAP[message]
+          if (mapped) {
+            reportViolation(mapped.type, mapped.detail)
+          } else {
+            // Fallback for any new violation type not yet in the map
+            reportViolation('proctoring_alert', message)
+          }
+          setExamStatus(`⚠ ${message}`, 'error')
+          activeViolations.add(message)
+        }
+      }
+
+      // ── Clear violations that are no longer active ───────────────────────
+      for (const message of activeViolations) {
+        if (!incomingViolations.has(message)) {
+          activeViolations.delete(message)
+        }
+      }
+
+      // ── Restore status once all violations clear ─────────────────────────
+      if (incomingViolations.size === 0) {
+        setExamStatus('Camera connected. Good luck!', 'info')
+      }
+    }
+
+    ws.onerror = (err) => {
+      console.warn('[Proctor] WebSocket error:', err)
+    }
+
+    ws.onclose = () => {
+      console.warn('[Proctor] WebSocket closed — reconnecting in 3s')
+      clearInterval(intervalId)
+      // Reconnect unless the exam is already over
+      if (!examSubmitted) {
+        setTimeout(connect, 3000)
+      }
+    }
+  }
+
+  function sendFrame() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    if (!video.videoWidth) return  // video not ready yet
+
+    canvas.width  = video.videoWidth
+    canvas.height = video.videoHeight
+    ctx.drawImage(video, 0, 0)
+    const frame = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
+    ws.send(JSON.stringify({ frame }))
+  }
+
+  connect()
+}
+
 
 function shouldLogBlockedProcess(processName) {
   const key = String(processName || '').toLowerCase()
