@@ -43,47 +43,10 @@ button:hover{
  background:#0056b3;
 }
 
-button:disabled{
- background:#7aa7e0;
- cursor:not-allowed;
-}
-
-.status-message{
- min-height:24px;
- margin:10px auto;
- width:90%;
- font-size:14px;
- font-weight:600;
-}
-
-.status-message.error{
- color:#b42318;
-}
-
-.status-message.info{
- color:#175cd3;
-}
-
 /* dashboard */
 
 .dashboard{
  text-align:center;
-}
-
-.dashboard-header{
- display:flex;
- justify-content:space-between;
- align-items:center;
- gap:16px;
-}
-
-.dashboard-card{
- background:#f7f9fc;
- border:1px solid #dfe6ef;
- border-radius:10px;
- padding:18px;
- margin:16px 0 24px;
- text-align:left;
 }
 
 .start-btn{
@@ -104,41 +67,15 @@ button:disabled{
  display:flex;
  flex-direction:column;
  align-items:center;
- gap:16px;
 }
 
 .top-bar{
  width:100%;
  display:flex;
  justify-content:space-between;
- align-items:center;
  padding:10px;
  background:#222;
  color:white;
- border-radius:10px;
-}
-
-.exam-top-right{
- display:flex;
- flex-direction:column;
- align-items:flex-end;
- gap:6px;
- font-weight:600;
-}
-
-.exam-meta{
- display:flex;
- gap:12px;
- margin-top:6px;
- font-size:14px;
- color:#d5d7da;
-}
-
-.exam-actions{
- width:100%;
- display:flex;
- justify-content:flex-end;
- gap:12px;
 }
 
 .video-box{
@@ -162,36 +99,47 @@ video{
  object-fit:cover;
 
 }
-
-.secondary-btn{
- background:#475467;
+.status{
+ margin-top:10px;
+ color:green;
+ font-weight:bold;
 }
 
-.secondary-btn:hover{
- background:#344054;
+/* Notification styles */
+.notification-box{
+ position: fixed;
+ top: 20px;
+ left: 50%;
+ transform: translateX(-50%);
+ background: #ff9800;
+ color: white;
+ padding: 15px 25px;
+ border-radius: 8px;
+ box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+ font-size: 16px;
+ font-weight: bold;
+ z-index: 9999;
+ animation: slideDown 0.3s ease-in-out;
 }
 
-.primary-btn{
- background:#c4320a;
+@keyframes slideDown {
+ from {
+  transform: translateX(-50%) translateY(-100px);
+  opacity: 0;
+ }
+ to {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+ }
 }
 
-.primary-btn:hover{
- background:#9c2a10;
-}
-
-.completion-screen{
- display:flex;
- justify-content:center;
- align-items:center;
- height:100vh;
- width:100%;
- background:#f4f6f9;
-}
-
-.completion-card{
- background:white;
- padding:40px;
- border-radius:12px;
- box-shadow:0 4px 10px rgba(0,0,0,0.1);
- text-align:center;
+@keyframes slideUp {
+ from {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+ }
+ to {
+  transform: translateX(-50%) translateY(-100px);
+  opacity: 0;
+ }
 }

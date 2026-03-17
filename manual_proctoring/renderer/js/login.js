@@ -1,121 +1,65 @@
-function setMessage(message, type = 'info') {
-  const messageElement = document.getElementById('loginMessage')
+async function login(){
 
-  if (!messageElement) {
-    return
-  }
+ const email=document.getElementById("email").value
+ const password=document.getElementById("password").value
 
-  messageElement.hidden = !message
-  messageElement.className = `status-message ${type}`
-  messageElement.innerText = message || ''
+ const res = await fetch("http://localhost:5000/api/login",{
+  method:"POST",
+  headers:{
+   "Content-Type":"application/json"
+  },
+  body:JSON.stringify({email,password})
+ })
+
+ const data = await res.json()
+
+ if(data.success){
+
+  localStorage.setItem("token",data.token)
+
+  // Request media permissions immediately after login
+  await requestMediaPermissions();
+
+  // Then navigate to dashboard
+  window.location="dashboard.html"
+
+ }else{
+
+  alert("Invalid login")
+
+ }
+
 }
 
-function setLoadingState(isLoading) {
-  const loginButton = document.getElementById('loginButton')
-
-  if (!loginButton) {
-    return
-  }
-
-  loginButton.disabled = isLoading
-  loginButton.innerText = isLoading ? 'Signing In...' : 'Login'
+// Request camera and microphone permissions
+async function requestMediaPermissions() {
+ try {
+  const stream = await navigator.mediaDevices.getUserMedia({
+   video: true,
+   audio: true
+  });
+  
+  // Stop the stream immediately after getting permission
+  stream.getTracks().forEach(track => track.stop());
+  
+  console.log("✓ Camera and microphone permissions granted");
+ } catch (error) {
+  console.warn("User denied camera/microphone permission:", error);
+  alert("Please allow camera and microphone permissions to proceed with the exam.");
+ }
 }
 
-async function validateExistingSession() {
-  const session = getStoredSession()
+// Disable right click
+document.addEventListener("contextmenu", e => e.preventDefault());
 
-  if (!session || !session.token) {
-    return
-  }
+// Disable copy/paste/cut
+document.addEventListener("copy", e => e.preventDefault());
+document.addEventListener("cut", e => e.preventDefault());
+document.addEventListener("paste", e => e.preventDefault());
 
-  setLoadingState(true)
-  setMessage('Checking active session...', 'info')
-
-  try {
-    const response = await fetchWithSession(`${API_BASE_URL}/api/session`)
-
-    if (!response) {
-      return
-    }
-
-    if (!response.ok) {
-      clearSession()
-      setMessage('', 'info')
-      return
-    }
-
-    const data = await response.json()
-
-    storeSession({
-      token: session.token,
-      expiresAt: data.expiresAt,
-      student: data.student
-    })
-
-    window.location = 'dashboard.html'
-  } catch (error) {
-    setMessage('Could not verify your saved session. Please sign in again.', 'error')
-  } finally {
-    setLoadingState(false)
-  }
-}
-
-async function login() {
-  const email = document.getElementById('email').value.trim()
-  const password = document.getElementById('password').value
-
-  if (!email || !password) {
-    setMessage('Enter both email and password.', 'error')
-    return
-  }
-
-  setLoadingState(true)
-  setMessage('Signing you in...', 'info')
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok || !data.success) {
-      clearSession()
-      setMessage(data.message || 'Invalid login credentials.', 'error')
-      return
-    }
-
-    storeSession({
-      token: data.token,
-      expiresAt: data.expiresAt,
-      student: data.student
-    })
-
-    window.location = 'dashboard.html'
-  } catch (error) {
-    clearSession()
-    setMessage('Unable to reach the server. Check that the backend is running.', 'error')
-  } finally {
-    setLoadingState(false)
-  }
-}
-
-window.addEventListener('load', () => {
-  const redirectMessage = consumeRedirectMessage()
-
-  if (redirectMessage) {
-    setMessage(redirectMessage, 'info')
-  }
-
-  validateExistingSession()
-
-  document.getElementById('password').addEventListener('keydown', event => {
-    if (event.key === 'Enter') {
-      login()
-    }
-  })
-})
+// Disable keyboard shortcuts for copy/cut/paste
+document.addEventListener("keydown", function(e) {
+ if (e.ctrlKey && (e.key === "c" || e.key === "x" || e.key === "v")) {
+  e.preventDefault();
+ }
+});

@@ -2,42 +2,52 @@
 <html>
 
 <head>
-  <title>Exam</title>
-  <link rel="stylesheet" href="css/style.css">
+<title>Exam</title>
+
+<link rel="stylesheet" href="css/style.css">
+
 </head>
 
 <body>
-  <div class="exam-container">
-    <div class="top-bar">
-      <div>
-        <div id="examTitle">Exam in Progress</div>
-        <div class="exam-meta">
-          <span id="examStudentName">Loading...</span>
-          <span id="examStudentEmail">Loading...</span>
-        </div>
-      </div>
-      <div class="exam-top-right">
-        <div>Timer: <span id="timer">00:00</span></div>
-        <div>Warnings: <span id="violationCount">0</span></div>
-      </div>
-    </div>
 
-    <p id="examMessage" class="status-message" hidden></p>
+<!-- Notification Container -->
+<div id="notificationBox" class="notification-box" style="display: none;">
+ <span id="notificationText"></span>
+</div>
 
-    <div class="exam-actions">
-      <button class="primary-btn" id="submitExamButton" onclick="submitExam('manual_submit')">Submit Exam</button>
-      <button class="secondary-btn" onclick="goBackToDashboard()">Back to Dashboard</button>
-    </div>
+<div class="exam-container">
 
-    <h2>Question Paper</h2>
-    <iframe id="questionFrame" width="100%" height="500px"></iframe>
+<div class="top-bar">
 
-    <div class="video-box">
-      <video id="video" autoplay playsinline muted></video>
-    </div>
-  </div>
+<div>Exam in Progress</div>
 
-  <script src="js/auth.js"></script>
-  <script src="js/exam.js"></script>
+<div>Timer: <span id="timer">0</span></div>
+
+</div>
+
+<br>
+
+<h2>Question Paper</h2>
+
+<!-- PDF viewer -->
+<iframe 
+id="questionFrame"
+width="100%"
+height="500px">
+</iframe>
+
+<br><br>
+
+<!-- Webcam -->
+<div class="video-box">
+
+<video id="video" autoplay playsinline muted></video>
+</div>
+
+</div>
+
+<script src="js/exam.js"></script>
+
 </body>
+
 </html>
