@@ -19,7 +19,7 @@ fs.mkdirSync(LOG_DIRECTORY, { recursive: true })
 
 const student = {
   id: 'ST101',
-  name: 'Asif',
+  name: 'Test_User',
   email: 'user',
   exam: 'IoT Final Exam'
 }
