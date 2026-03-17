@@ -14,7 +14,8 @@ describe('POST /api/login', () => {
       .expect(200);
 
     expect(response.body.success).toBe(true);
-    expect(response.body.token).toBe('dummy_token_123');
+    expect(typeof response.body.token).toBe('string');
+    expect(response.body.token.length).toBeGreaterThan(10);
   });
 
   it('should return error for invalid credentials', async () => {

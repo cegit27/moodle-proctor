@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 .env
+
+# Test outputs
+backend/coverage/
+test-results/

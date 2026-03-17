@@ -3,7 +3,19 @@ async function loadExam() {
 
     try {
 
-        const response = await fetch("http://localhost:5000/exam");
+        const token = localStorage.getItem('token');
+        const response = await fetch("http://localhost:5000/exam", {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        if (response.status === 401) {
+            alert('Authentication required. Please log in again.');
+            window.location = 'login.html';
+            return;
+        }
+
         const data = await response.json();
 
         // start timer
