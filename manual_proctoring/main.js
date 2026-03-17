@@ -1,7 +1,9 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const { spawn } = require("child_process");
 
 let mainWindow;
+let serverProcess;
 
 function createWindow(){
 
@@ -19,7 +21,21 @@ function createWindow(){
 
 }
 
-app.whenReady().then(createWindow);
+function startServer() {
+  serverProcess = spawn('node', ['backend/server.js'], { stdio: 'inherit' });
+}
+
+app.whenReady().then(() => {
+  startServer();
+  createWindow();
+});
+
+app.on('window-all-closed', () => {
+  if (serverProcess) {
+    serverProcess.kill();
+  }
+  app.quit();
+});
 
 
 // START FULLSCREEN WHEN EXAM STARTS

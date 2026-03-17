@@ -1,5 +1,22 @@
 import { test, expect } from '@playwright/test';
 import { _electron as electron } from 'playwright';
+import { spawn } from 'child_process';
+
+let serverProcess;
+
+test.beforeAll(async () => {
+  // Start the backend server
+  serverProcess = spawn('node', ['backend/server.js'], { cwd: __dirname + '/../' });
+  // Wait a bit for server to start
+  await new Promise(resolve => setTimeout(resolve, 2000));
+});
+
+test.afterAll(async () => {
+  // Kill the server
+  if (serverProcess) {
+    serverProcess.kill();
+  }
+});
 
 test('complete proctoring workflow', async () => {
   const electronApp = await electron.launch({ args: ['.'] });
