@@ -1,18 +1,19 @@
 {
-  "name": "backend",
+  "name": "manual-proctoring-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Dummy backend for manual proctoring app",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest --coverage"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "supertest": "^6.3.0"
   }
 }

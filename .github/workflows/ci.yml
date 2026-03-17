@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: ./manual_proctoring/backend
+        run: npm ci
+
+      - name: Run backend unit tests (with coverage)
+        working-directory: ./manual_proctoring/backend
+        run: npm test -- --coverage
+
+      - name: Install frontend dependencies (Playwright + Electron)
+        working-directory: ./manual_proctoring
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Start backend server
+        working-directory: ./manual_proctoring/backend
+        run: |
+          npm start &
+          sleep 3
+
+      - name: Run E2E tests (Playwright)
+        working-directory: ./manual_proctoring
+        run: npm run test:e2e -- --reporter=list
