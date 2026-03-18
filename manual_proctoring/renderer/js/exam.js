@@ -429,7 +429,7 @@ async function startExamAttempt() {
 }
 
 async function loadExam() {
-  setExamStatus('Loading exam details...', 'info')
+  setExamStatus('Loading your exam...', 'info')
 
   try {
     const response = await fetchWithSession(`${API_BASE_URL}/api/exam`)
@@ -441,7 +441,7 @@ async function loadExam() {
     const data = await response.json()
 
     if (!response.ok || !data.success) {
-      setExamStatus('Could not load the exam data.', 'error')
+      setExamStatus('We could not load your exam right now.', 'error')
       return
     }
 
@@ -470,10 +470,10 @@ async function loadExam() {
 
     startTimer(data.timerSeconds)
     await loadQuestionPaper(data.questionPaper)
-    setExamStatus('Exam loaded successfully.', 'info')
+    setExamStatus('Your exam is ready. Stay focused and good luck.', 'info')
   } catch (error) {
     console.error('Error loading exam:', error)
-    setExamStatus('Failed to load the exam. Please verify the backend is running.', 'error')
+    setExamStatus('We could not connect to the exam server. Please try again or contact the invigilator.', 'error')
   }
 }
 
@@ -484,7 +484,7 @@ async function submitExam(reason = 'manual_submit') {
 
   isSubmitting = true
   updateSubmissionButton(true, 'Submitting...')
-  setExamStatus('Submitting your exam...', 'info')
+  setExamStatus('Submitting your exam. Please wait...', 'info')
 
   try {
     const response = await fetchWithSession(`${API_BASE_URL}/api/exam/submit`, {
@@ -502,7 +502,7 @@ async function submitExam(reason = 'manual_submit') {
     const data = await response.json()
 
     if (!response.ok || !data.success) {
-      setExamStatus(data.message || 'Could not submit the exam.', 'error')
+      setExamStatus(data.message || 'We could not submit your exam right now.', 'error')
       return
     }
 
@@ -510,7 +510,7 @@ async function submitExam(reason = 'manual_submit') {
     finishExamUI(reason)
   } catch (error) {
     console.error('Submit error:', error)
-    setExamStatus('Could not submit the exam. Please try again.', 'error')
+    setExamStatus('We could not submit your exam right now. Please try again.', 'error')
   } finally {
     isSubmitting = false
     updateSubmissionButton(examSubmitted, examSubmitted ? 'Submitted' : 'Submit Exam')
@@ -521,7 +521,7 @@ async function startCamera() {
   const video = document.getElementById('video')
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setExamStatus('A working camera is required before the exam can start.', 'error')
+    setExamStatus('You need a working camera before the exam can start.', 'error')
     return false
   }
 
@@ -530,7 +530,7 @@ async function startCamera() {
     const hasVideoInput = devices.some(device => device.kind === 'videoinput')
 
     if (!hasVideoInput) {
-      setExamStatus('No camera was detected. Connect a working camera to start the exam.', 'error')
+      setExamStatus('No camera was detected. Connect one to continue with the exam.', 'error')
       return false
     }
 
@@ -540,12 +540,12 @@ async function startCamera() {
     })
 
     video.srcObject = stream
-    setExamStatus('Camera connected. Good luck!', 'info')
+    setExamStatus('Your camera is connected. You are ready to begin.', 'info')
     startFrameCapture(video)
     return true
   } catch (error) {
     console.error('Camera error:', error)
-    setExamStatus('The exam cannot start because the camera is unavailable or not working properly.', 'error')
+    setExamStatus('We could not access your camera. Check camera permissions and try again.', 'error')
     return false
   }
 }
