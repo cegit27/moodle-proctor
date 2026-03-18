@@ -73,8 +73,26 @@
       </aside>
     </div>
 
-    <div class="video-box">
-      <video id="video" autoplay playsinline muted></video>
+    <div id="proctorVideoBox" class="video-box video-box-idle">
+      <div class="video-box-header">
+        <div>
+          <div class="video-box-title">Live Proctor Feed</div>
+          <div id="videoAiStatusText" class="video-box-subtitle">Waiting for camera...</div>
+        </div>
+        <span id="videoAiStatusBadge" class="video-status-badge video-status-badge-idle">Idle</span>
+      </div>
+
+      <div class="video-frame">
+        <video id="video" autoplay playsinline muted></video>
+        <div id="videoWarningOverlay" class="video-warning-overlay" hidden>
+          <div class="video-warning-label">Warning Detected</div>
+          <div id="videoWarningText" class="video-warning-text">Monitoring alert</div>
+        </div>
+      </div>
+
+      <div id="videoWarningStack" class="video-warning-stack">
+        <div class="video-warning-pill video-warning-pill-neutral">No live AI warnings</div>
+      </div>
     </div>
   </div>
 

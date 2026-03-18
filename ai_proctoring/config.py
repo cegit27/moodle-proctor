@@ -14,7 +14,7 @@ WEBCAM_INDEX    = 0
 FRAME_WIDTH     = 1280
 FRAME_HEIGHT    = 720
 TARGET_FPS      = 30
-SHOW_PREVIEW    = True
+SHOW_PREVIEW    = False
 SHOW_DEBUG_INFO = True
 
 # ── Strictness preset ──────────────────────────────────────────────────────────

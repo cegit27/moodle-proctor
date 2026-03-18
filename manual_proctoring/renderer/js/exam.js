@@ -13,6 +13,12 @@ let blurEventCount = 0
 let visibilityEventCount = 0
 let reconnectCheckTimerId = null
 let backendDisconnected = false
+let frameCaptureController = null
+let aiProctoringStatus = {
+  state: 'idle',
+  detail: 'Waiting for AI proctoring to start.'
+}
+let liveAiWarnings = []
 
 const EXAM_CONFIG = {
   maxWarnings: 15,
@@ -198,6 +204,97 @@ function getUserFacingWarningCopy(violation = {}) {
     title: violation.type || 'Warning recorded',
     detail: violation.detail || 'A warning was recorded for this exam attempt.'
   }
+}
+
+function renderVideoFeedState() {
+  const videoBox = document.getElementById('proctorVideoBox')
+  const statusText = document.getElementById('videoAiStatusText')
+  const statusBadge = document.getElementById('videoAiStatusBadge')
+  const warningOverlay = document.getElementById('videoWarningOverlay')
+  const warningText = document.getElementById('videoWarningText')
+  const warningStack = document.getElementById('videoWarningStack')
+
+  if (!videoBox || !statusText || !statusBadge || !warningOverlay || !warningText || !warningStack) {
+    return
+  }
+
+  const hasWarnings = liveAiWarnings.length > 0
+  const normalizedState = hasWarnings
+    ? 'warning'
+    : (aiProctoringStatus.state || 'idle')
+
+  videoBox.classList.remove(
+    'video-box-idle',
+    'video-box-monitoring',
+    'video-box-warning',
+    'video-box-error'
+  )
+  statusBadge.classList.remove(
+    'video-status-badge-idle',
+    'video-status-badge-monitoring',
+    'video-status-badge-warning',
+    'video-status-badge-error'
+  )
+
+  const modeToBoxClass = {
+    idle: 'video-box-idle',
+    starting: 'video-box-monitoring',
+    running: 'video-box-monitoring',
+    warning: 'video-box-warning',
+    stopped: 'video-box-idle',
+    error: 'video-box-error'
+  }
+  const modeToBadgeClass = {
+    idle: 'video-status-badge-idle',
+    starting: 'video-status-badge-monitoring',
+    running: 'video-status-badge-monitoring',
+    warning: 'video-status-badge-warning',
+    stopped: 'video-status-badge-idle',
+    error: 'video-status-badge-error'
+  }
+  const modeToBadgeLabel = {
+    idle: 'Idle',
+    starting: 'Starting',
+    running: 'Live',
+    warning: 'Alert',
+    stopped: 'Stopped',
+    error: 'Error'
+  }
+
+  videoBox.classList.add(modeToBoxClass[normalizedState] || 'video-box-idle')
+  statusBadge.classList.add(modeToBadgeClass[normalizedState] || 'video-status-badge-idle')
+  statusBadge.innerText = modeToBadgeLabel[normalizedState] || 'Idle'
+
+  if (hasWarnings) {
+    const primaryWarning = liveAiWarnings[0]
+    statusText.innerText = `${liveAiWarnings.length} live warning${liveAiWarnings.length > 1 ? 's' : ''} on the camera feed.`
+    warningOverlay.hidden = false
+    warningText.innerText = primaryWarning
+    warningStack.innerHTML = liveAiWarnings
+      .slice(0, 3)
+      .map(warning => `<div class="video-warning-pill video-warning-pill-warning">${escapeHtml(warning)}</div>`)
+      .join('')
+    return
+  }
+
+  warningOverlay.hidden = true
+  statusText.innerText = aiProctoringStatus.detail || 'AI monitoring is standing by.'
+  warningStack.innerHTML = '<div class="video-warning-pill video-warning-pill-neutral">No live AI warnings</div>'
+}
+
+function setLiveAIWarnings(warnings = []) {
+  liveAiWarnings = Array.isArray(warnings)
+    ? warnings.filter(Boolean).slice(0, 3)
+    : []
+  renderVideoFeedState()
+}
+
+function setAIProctoringStatus(status = {}) {
+  aiProctoringStatus = {
+    state: status.state || 'idle',
+    detail: status.detail || 'AI proctoring status is unavailable.'
+  }
+  renderVideoFeedState()
 }
 
 function showViolationStatus(violation = {}) {
@@ -521,6 +618,11 @@ function releaseExamResources() {
 
   const video = document.getElementById('video')
 
+  if (frameCaptureController?.stop) {
+    frameCaptureController.stop()
+    frameCaptureController = null
+  }
+
   if (video?.srcObject) {
     video.srcObject.getTracks().forEach(track => track.stop())
     video.srcObject = null
@@ -534,7 +636,13 @@ function releaseExamResources() {
     window.electronAPI.stopExamMonitoring()
   }
 
+  if (window.electronAPI?.stopAIProctoringService) {
+    window.electronAPI.stopAIProctoringService()
+  }
+
   clearReconnectCheck()
+  activeViolations.clear()
+  setLiveAIWarnings([])
 }
 
 function formatCompletionLabel(value, fallback = 'Not available') {
@@ -863,6 +971,21 @@ async function startCamera() {
       return false
     }
 
+    if (window.electronAPI?.ensureAIProctoringService) {
+      setAIProctoringStatus({
+        state: 'starting',
+        detail: 'Starting AI proctoring and preparing the live feed...'
+      })
+
+      const serviceStatus = await window.electronAPI.ensureAIProctoringService()
+      setAIProctoringStatus(serviceStatus)
+
+      if (serviceStatus?.state === 'error') {
+        setExamStatus(serviceStatus.detail || 'AI proctoring could not be started.', 'error')
+        return false
+      }
+    }
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: false
@@ -870,11 +993,20 @@ async function startCamera() {
 
     video.srcObject = stream
     setExamStatus('Your camera is connected. You are ready to begin.', 'info')
-    startFrameCapture(video)
+    frameCaptureController = startFrameCaptureWithOverlay(video)
     return true
   } catch (error) {
     console.error('Camera error:', error)
     setExamStatus('We could not access your camera. Check camera permissions and try again.', 'error')
+    setAIProctoringStatus({
+      state: 'error',
+      detail: 'Camera access failed. AI monitoring could not continue.'
+    })
+
+    if (window.electronAPI?.stopAIProctoringService) {
+      window.electronAPI.stopAIProctoringService()
+    }
+
     return false
   }
 }
@@ -893,6 +1025,11 @@ const PROCTORING_VIOLATION_MAP = {
   'Lighting too dark — face not visible': { type: 'lighting_dark', detail: 'Camera feed too dark to verify candidate.' },
   'Background movement detected':  { type: 'background_motion',  detail: 'Unexpected movement detected in background.' },
   'Identity could not be verified':{ type: 'identity_mismatch',  detail: 'Candidate face does not match registered identity.' },
+}
+
+PROCTORING_VIOLATION_MAP['Lighting too dark - face not visible'] = {
+  type: 'lighting_dark',
+  detail: 'Camera feed too dark to verify candidate.'
 }
 
 // Tracks which violation types are currently "active" so we don't spam
@@ -1010,6 +1147,168 @@ function startFrameCapture(video) {
   }
 
   connect()
+}
+
+function startFrameCaptureWithOverlay(video) {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+
+  const WS_URL = (window.PROCTOR_WS_URL) || 'ws://localhost:8000/proctor'
+  let ws = null
+  let intervalId = null
+  let reconnectTimeoutId = null
+  let hasConnectedOnce = false
+  let stopped = false
+
+  setAIProctoringStatus({
+    state: 'starting',
+    detail: 'Connecting the live feed to AI monitoring...'
+  })
+
+  function connect() {
+    if (stopped) {
+      return
+    }
+
+    ws = new WebSocket(WS_URL)
+
+    ws.onopen = () => {
+      console.log('[Proctor] WebSocket connected')
+      setAIProctoringStatus({
+        state: 'running',
+        detail: 'AI monitoring is actively checking the live camera feed.'
+      })
+
+      if (hasConnectedOnce) {
+        reportViolation(
+          'proctor_reconnected',
+          'The proctoring connection is active again.',
+          'info'
+        )
+      }
+
+      hasConnectedOnce = true
+      intervalId = setInterval(sendFrame, 1000 / 5)
+    }
+
+    ws.onmessage = (event) => {
+      if (!examStarted || examSubmitted) {
+        return
+      }
+
+      let result
+      try {
+        result = JSON.parse(event.data)
+      } catch {
+        return
+      }
+
+      const incomingViolations = new Set(result.violations || [])
+      setLiveAIWarnings(Array.from(incomingViolations))
+
+      for (const message of incomingViolations) {
+        if (!activeViolations.has(message)) {
+          const mapped = PROCTORING_VIOLATION_MAP[message]
+          if (mapped) {
+            showViolationStatus({
+              type: mapped.type,
+              detail: mapped.detail,
+              severity: 'warning'
+            })
+            reportViolation(mapped.type, mapped.detail, 'warning')
+          } else {
+            showViolationStatus({
+              type: 'proctoring_alert',
+              detail: message,
+              severity: 'warning'
+            })
+            reportViolation('proctoring_alert', message, 'warning')
+          }
+
+          activeViolations.add(message)
+        }
+      }
+
+      for (const message of Array.from(activeViolations)) {
+        if (!incomingViolations.has(message)) {
+          activeViolations.delete(message)
+        }
+      }
+
+      if (incomingViolations.size === 0) {
+        setAIProctoringStatus({
+          state: 'running',
+          detail: 'AI monitoring is actively checking the live camera feed.'
+        })
+        setExamStatus('Your camera is connected. You are ready to begin.', 'info')
+      }
+    }
+
+    ws.onerror = (err) => {
+      console.warn('[Proctor] WebSocket error:', err)
+    }
+
+    ws.onclose = () => {
+      console.warn('[Proctor] WebSocket closed - reconnecting in 3s')
+      clearInterval(intervalId)
+      intervalId = null
+      setLiveAIWarnings([])
+
+      if (!stopped) {
+        setAIProctoringStatus({
+          state: 'starting',
+          detail: 'AI monitoring connection was lost. Reconnecting to the live feed...'
+        })
+      }
+
+      if (!examSubmitted && hasConnectedOnce) {
+        reportViolation(
+          'proctor_connection_lost',
+          'The proctoring connection was interrupted and is trying to reconnect.',
+          'info'
+        )
+      }
+
+      if (!examSubmitted && !stopped) {
+        reconnectTimeoutId = setTimeout(connect, 3000)
+      }
+    }
+  }
+
+  function sendFrame() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    if (!video.videoWidth) return
+
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    ctx.drawImage(video, 0, 0)
+    const frame = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
+    ws.send(JSON.stringify({ frame }))
+  }
+
+  connect()
+
+  return {
+    stop() {
+      stopped = true
+      clearInterval(intervalId)
+      clearTimeout(reconnectTimeoutId)
+      intervalId = null
+      reconnectTimeoutId = null
+      activeViolations.clear()
+      setLiveAIWarnings([])
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close()
+      }
+
+      ws = null
+      setAIProctoringStatus({
+        state: 'stopped',
+        detail: 'AI monitoring stopped for this exam session.'
+      })
+    }
+  }
 }
 
 
@@ -1185,6 +1484,12 @@ function registerExamGuards() {
       reportViolation('blocked_network_app', `Detected and closed blocked application(s): ${blockedList}.`, 'warning')
     })
   }
+
+  if (window.electronAPI?.onAIProctoringStatus) {
+    window.electronAPI.onAIProctoringStatus(status => {
+      setAIProctoringStatus(status)
+    })
+  }
 }
 
 window.addEventListener('beforeunload', () => {
@@ -1196,6 +1501,13 @@ window.addEventListener('beforeunload', () => {
 })
 
 window.addEventListener('load', async () => {
+  if (window.electronAPI?.getAIProctoringStatus) {
+    const initialAIStatus = await window.electronAPI.getAIProctoringStatus()
+    setAIProctoringStatus(initialAIStatus)
+  } else {
+    renderVideoFeedState()
+  }
+
   registerDevMonitoringControls()
   await loadDevMonitoringSettings()
   registerExamGuards()

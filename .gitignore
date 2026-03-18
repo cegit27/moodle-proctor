@@ -27,3 +27,5 @@ dsc/.next/
 manual_proctoring/node_modules/
 manual_proctoring/backend/node_modules/
 manual_proctoring/backend/logs/
+
+ai_proctoring/venv

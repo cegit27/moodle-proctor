@@ -34,6 +34,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/health")
+async def healthcheck():
+    return {"status": "ok"}
+
 # ── Global state (shared across WebSocket connections) ─────────────────────────
 ensure_directories()
 session_start = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -230,6 +235,41 @@ def _process_frame(frame: np.ndarray, state: SessionState) -> dict:
         # 9. Identity mismatch
         if identity_result.get("identity_status") == "mismatch":
             violations.append("Identity could not be verified")
+
+    violations = []
+
+    if face_result.get("face_count", 1) == 0:
+        violations.append("No face detected")
+    if face_result.get("face_count", 1) > 1:
+        violations.append("Multiple faces detected")
+
+    if gaze_result.get("gaze_status") == "looking_away":
+        violations.append("Looking away from screen")
+
+    if phone_result.get("phone_detected"):
+        violations.append("Phone detected")
+
+    if object_result.get("count", 0) > 0:
+        labels = object_result.get("labels", [])
+        detail = f"Forbidden object detected: {', '.join(labels)}" if labels else "Forbidden object detected"
+        violations.append(detail)
+
+    if blink_result.get("anomaly"):
+        violations.append("Abnormal blink rate detected")
+
+    if lip_result.get("lip_status") == "talking":
+        violations.append("Talking detected")
+
+    if light_result.get("status") == "blocked":
+        violations.append("Camera may be blocked")
+    if light_result.get("status") == "too_dark":
+        violations.append("Lighting too dark - face not visible")
+
+    if motion_result.get("status") == "motion_detected":
+        violations.append("Background movement detected")
+
+    if identity_result.get("identity_status") == "mismatch":
+        violations.append("Identity could not be verified")
 
     return {
         "frame":      state.frame_count,

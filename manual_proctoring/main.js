@@ -1,12 +1,24 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
-const { execFile } = require('child_process')
+const { execFile, spawn } = require('child_process')
 const fs = require('fs')
+const net = require('net')
 const path = require('path')
 
 let mainWindow
 let monitoringInterval = null
+let aiProctoringProcess = null
+let aiProctoringStartupPromise = null
+let aiProctoringStatus = {
+  state: 'idle',
+  detail: 'AI proctoring has not started yet.'
+}
 const isDevelopmentMode = !app.isPackaged
 let devBlockedAppMonitoringEnabled = !isDevelopmentMode
+
+const AI_PROCTORING_PORT = 8000
+const AI_PROCTORING_HOST = '127.0.0.1'
+const AI_PROCTORING_DIR = path.join(__dirname, '..', 'ai_proctoring')
+const AI_PROCTORING_ENTRYPOINT = 'main.py'
 
 const BLOCKED_APPS_CONFIG_PATH = path.join(
   __dirname,
@@ -100,6 +112,142 @@ function runProcessCommand (file, args = []) {
       }
     )
   })
+}
+
+function setAiProctoringStatus (state, detail) {
+  aiProctoringStatus = { state, detail }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('ai-proctoring-status', aiProctoringStatus)
+  }
+}
+
+function isAiProctoringPortOpen () {
+  return new Promise(resolve => {
+    const socket = new net.Socket()
+
+    const finish = isOpen => {
+      socket.removeAllListeners()
+      socket.destroy()
+      resolve(isOpen)
+    }
+
+    socket.setTimeout(1000)
+    socket.once('connect', () => finish(true))
+    socket.once('timeout', () => finish(false))
+    socket.once('error', () => finish(false))
+    socket.connect(AI_PROCTORING_PORT, AI_PROCTORING_HOST)
+  })
+}
+
+async function waitForAiProctoringReady (timeoutMs = 30000) {
+  const startedAt = Date.now()
+
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isAiProctoringPortOpen()) {
+      return true
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500))
+  }
+
+  return false
+}
+
+function resolveAiPythonCommand () {
+  const bundledPython = path.join(AI_PROCTORING_DIR, 'venv', 'Scripts', 'python.exe')
+
+  if (fs.existsSync(bundledPython)) {
+    return {
+      file: bundledPython,
+      args: [AI_PROCTORING_ENTRYPOINT]
+    }
+  }
+
+  return {
+    file: 'python',
+    args: [AI_PROCTORING_ENTRYPOINT]
+  }
+}
+
+async function ensureAiProctoringService () {
+  if (await isAiProctoringPortOpen()) {
+    setAiProctoringStatus('running', 'AI proctoring is connected.')
+    return aiProctoringStatus
+  }
+
+  if (aiProctoringStartupPromise) {
+    return aiProctoringStartupPromise
+  }
+
+  aiProctoringStartupPromise = (async () => {
+    const { file, args } = resolveAiPythonCommand()
+
+    setAiProctoringStatus('starting', 'Starting AI proctoring...')
+
+    aiProctoringProcess = spawn(file, args, {
+      cwd: AI_PROCTORING_DIR,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true
+    })
+
+    aiProctoringProcess.stdout.on('data', chunk => {
+      console.log(`[AI Proctoring] ${String(chunk).trimEnd()}`)
+    })
+
+    aiProctoringProcess.stderr.on('data', chunk => {
+      console.error(`[AI Proctoring] ${String(chunk).trimEnd()}`)
+    })
+
+    aiProctoringProcess.once('error', error => {
+      setAiProctoringStatus('error', `AI proctoring failed to start: ${error.message}`)
+    })
+
+    aiProctoringProcess.once('exit', code => {
+      aiProctoringProcess = null
+
+      if (aiProctoringStatus.state !== 'stopped') {
+        const detail = code === 0
+          ? 'AI proctoring stopped.'
+          : `AI proctoring stopped unexpectedly (exit code ${code ?? 'unknown'}).`
+        setAiProctoringStatus(code === 0 ? 'stopped' : 'error', detail)
+      }
+    })
+
+    const isReady = await waitForAiProctoringReady()
+
+    if (!isReady) {
+      if (aiProctoringProcess && !aiProctoringProcess.killed) {
+        aiProctoringProcess.kill()
+      }
+
+      aiProctoringProcess = null
+      setAiProctoringStatus('error', 'AI proctoring did not become ready in time.')
+      throw new Error('AI proctoring service did not become ready in time.')
+    }
+
+    setAiProctoringStatus('running', 'AI proctoring is connected.')
+    return aiProctoringStatus
+  })()
+
+  try {
+    return await aiProctoringStartupPromise
+  } finally {
+    aiProctoringStartupPromise = null
+  }
+}
+
+function stopAiProctoringService () {
+  if (!aiProctoringProcess) {
+    if (aiProctoringStatus.state !== 'idle') {
+      setAiProctoringStatus('stopped', 'AI proctoring stopped.')
+    }
+    return
+  }
+
+  setAiProctoringStatus('stopped', 'Stopping AI proctoring...')
+  aiProctoringProcess.kill()
+  aiProctoringProcess = null
 }
 
 function parseCsvLine (line) {
@@ -264,6 +412,23 @@ ipcMain.on('stop-exam-monitoring', () => {
   stopExamMonitoring()
 })
 
+ipcMain.handle('ensure-ai-proctoring-service', async () => {
+  try {
+    return await ensureAiProctoringService()
+  } catch (error) {
+    return {
+      state: 'error',
+      detail: error.message
+    }
+  }
+})
+
+ipcMain.handle('get-ai-proctoring-status', () => aiProctoringStatus)
+
+ipcMain.on('stop-ai-proctoring-service', () => {
+  stopAiProctoringService()
+})
+
 ipcMain.handle('get-exam-dev-settings', () => ({
   isDevelopmentMode,
   blockedAppMonitoringEnabled: isDevelopmentMode
@@ -299,4 +464,5 @@ app.on('browser-window-created', (_, window) => {
 
 app.on('before-quit', () => {
   stopExamMonitoring()
+  stopAiProctoringService()
 })
