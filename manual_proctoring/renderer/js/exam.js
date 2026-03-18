@@ -106,7 +106,35 @@ function formatDuration(totalSeconds) {
 }
 
 function updateViolationCount(count) {
-  document.getElementById('violationCount').innerText = String(count || 0)
+  const normalizedCount = Number(count || 0)
+  const violationCountElement = document.getElementById('violationCount')
+  const warningProgressElement = document.getElementById('warningProgress')
+
+  if (violationCountElement) {
+    violationCountElement.innerText = String(normalizedCount)
+  }
+
+  if (!warningProgressElement) {
+    return
+  }
+
+  warningProgressElement.classList.remove(
+    'warning-progress-safe',
+    'warning-progress-warning',
+    'warning-progress-danger'
+  )
+
+  if (normalizedCount >= 12) {
+    warningProgressElement.classList.add('warning-progress-danger')
+    return
+  }
+
+  if (normalizedCount >= 8) {
+    warningProgressElement.classList.add('warning-progress-warning')
+    return
+  }
+
+  warningProgressElement.classList.add('warning-progress-safe')
 }
 
 function formatViolationTimestamp(timestamp) {

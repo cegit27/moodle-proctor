@@ -189,6 +189,38 @@ button:disabled{
  font-weight:600;
 }
 
+.warning-progress{
+ display:inline-flex;
+ align-items:center;
+ gap:4px;
+ padding:6px 10px;
+ border-radius:999px;
+ border:1px solid transparent;
+ transition:background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.warning-progress-total{
+ opacity:0.92;
+}
+
+.warning-progress-safe{
+ background:rgba(18, 183, 106, 0.16);
+ color:#d1fadf;
+ border-color:rgba(18, 183, 106, 0.35);
+}
+
+.warning-progress-warning{
+ background:rgba(245, 154, 35, 0.18);
+ color:#fef0c7;
+ border-color:rgba(245, 154, 35, 0.35);
+}
+
+.warning-progress-danger{
+ background:rgba(240, 68, 56, 0.2);
+ color:#fee4e2;
+ border-color:rgba(240, 68, 56, 0.4);
+}
+
 .exam-meta{
  display:flex;
  gap:12px;
