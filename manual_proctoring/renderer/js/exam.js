@@ -12,6 +12,80 @@ let audioUnlocked = false
 const MAX_WARNINGS = 15
 const NETWORK_APP_WARNING_COOLDOWN_MS = 5000
 const recentBlockedAppWarnings = new Map()
+const USER_FACING_WARNING_COPY = {
+  face_absent: {
+    title: 'Face not visible',
+    detail: 'Your face was not clearly visible in the camera.'
+  },
+  multiple_faces: {
+    title: 'Multiple faces detected',
+    detail: 'More than one face was visible in the camera.'
+  },
+  phone_detected: {
+    title: 'Phone detected',
+    detail: 'A phone was detected in your camera view.'
+  },
+  gaze_away: {
+    title: 'Looking away',
+    detail: 'You looked away from the screen.'
+  },
+  lip_movement: {
+    title: 'Talking detected',
+    detail: 'Talking or repeated lip movement was detected.'
+  },
+  camera_blocked: {
+    title: 'Camera may be blocked',
+    detail: 'Your camera view may be blocked or unclear.'
+  },
+  blink_anomaly: {
+    title: 'Unusual blink pattern',
+    detail: 'An unusual blink pattern was detected.'
+  },
+  lighting_dark: {
+    title: 'Lighting too dark',
+    detail: 'The room is too dark to clearly verify your face.'
+  },
+  background_motion: {
+    title: 'Background movement',
+    detail: 'Unexpected movement was detected in the background.'
+  },
+  identity_mismatch: {
+    title: 'Identity could not be verified',
+    detail: 'Your face could not be matched clearly for verification.'
+  },
+  left_exam_view: {
+    title: 'You left the exam view',
+    detail: 'You tried to leave the exam before submitting.'
+  },
+  blocked_shortcut: {
+    title: 'Blocked shortcut used',
+    detail: 'A restricted keyboard shortcut was used during the exam.'
+  },
+  window_blur: {
+    title: 'Exam window focus lost',
+    detail: 'You switched focus away from the exam window.'
+  },
+  visibility_hidden: {
+    title: 'Exam page hidden',
+    detail: 'You switched away from the exam page.'
+  },
+  fullscreen_exit: {
+    title: 'Fullscreen exited',
+    detail: 'You exited fullscreen mode during the exam.'
+  },
+  blocked_network_app: {
+    title: 'Blocked app detected',
+    detail: 'A blocked app was opened and closed automatically.'
+  },
+  page_unload: {
+    title: 'Page unload detected',
+    detail: 'The exam page was closed or reloaded before submission.'
+  },
+  proctoring_alert: {
+    title: 'Proctoring alert',
+    detail: 'A proctoring alert was detected during the exam.'
+  }
+}
 
 function setExamStatus(message, type = 'info') {
   const status = document.getElementById('examMessage')
@@ -65,6 +139,22 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;')
 }
 
+function getUserFacingWarningCopy(violation = {}) {
+  const mappedCopy = USER_FACING_WARNING_COPY[violation.type]
+
+  if (mappedCopy) {
+    return {
+      title: mappedCopy.title,
+      detail: violation.detail || mappedCopy.detail
+    }
+  }
+
+  return {
+    title: violation.type || 'Warning recorded',
+    detail: violation.detail || 'A warning was recorded for this exam attempt.'
+  }
+}
+
 function renderWarningHistory(violations = []) {
   const historyList = document.getElementById('warningHistoryList')
 
@@ -83,8 +173,9 @@ function renderWarningHistory(violations = []) {
 
   historyList.innerHTML = recentViolations
     .map(violation => {
-      const detail = escapeHtml(violation.detail || 'No detail provided.')
-      const type = escapeHtml(violation.type || 'unknown')
+      const warningCopy = getUserFacingWarningCopy(violation)
+      const detail = escapeHtml(warningCopy.detail)
+      const type = escapeHtml(warningCopy.title)
       const timestamp = escapeHtml(formatViolationTimestamp(violation.createdAt))
 
       return `
