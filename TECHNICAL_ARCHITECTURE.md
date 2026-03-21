@@ -170,7 +170,7 @@ ai_proctoring/
 
 ### 5. Moodle Integration
 
-**Location**: `/moodle-official/`
+**Managed by**: Root docker-compose.yml
 **Port**: 8080 (HTTP), 8443 (HTTPS)
 **Image**: bitnamilegacy/moodle
 **Database**: MariaDB
