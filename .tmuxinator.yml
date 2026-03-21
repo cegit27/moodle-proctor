@@ -1,0 +1,49 @@
+name: moodle-proctor
+root: /home/aryaniyaps/web-projects/moodle-proctor
+
+# Optional: Attach to session when running tmuxinator
+attach: true
+
+# Post-session commands (when closing tmux)
+# on_project_stop: docker-compose stop
+
+windows:
+  - Docker Compose:
+      layout: even-horizontal
+      panes:
+        - Infrastructure Services:
+            - docker-compose up postgres mariadb moodle
+        - Backend Container:
+            - docker-compose up backend
+        - AI Proctoring Container:
+            - docker-compose up ai_proctoring
+
+  - Local Development:
+      layout: tiled
+      panes:
+        - Backend (Fastify):
+            - cd backend && npm run dev
+        - Frontend (Teacher Dashboard):
+            - cd frontend && npm run dev
+        - AI Proctoring (FastAPI):
+            - cd ai_proctoring && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+        - Mobile Scanning Client:
+            - cd Scanning-and-Uploading/exam-system-mobile-client-main && npm run dev
+
+  - Manual Proctoring:
+      layout: even-horizontal
+      panes:
+        - Backend:
+            - cd manual_proctoring/backend && npm start
+        - Electron App:
+            - cd manual_proctoring && npm start
+
+  - Utilities:
+      layout: even-horizontal
+      panes:
+        - Docker Logs:
+            - echo "Use 'docker-compose logs -f [service]' to follow logs"
+        - Database:
+            - echo "PostgreSQL: localhost:5432 | MariaDB: localhost:3306"
+        - Services:
+            - echo "Frontend: :3000 | Backend: :5000 | AI: :8000 | Moodle: :8080"
