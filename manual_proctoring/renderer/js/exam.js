@@ -1721,17 +1721,44 @@ function processIncomingAiViolations (incomingViolations) {
   }
 }
 
+function getProctorWebSocketUrl () {
+  if (window.PROCTOR_WS_URL) {
+    return window.PROCTOR_WS_URL
+  }
+
+  const session =
+    typeof getStoredSession === 'function' ? getStoredSession() : null
+
+  if (!session?.token || !currentAttempt?.id) {
+    return null
+  }
+
+  const wsUrl = new URL(API_BASE_URL)
+  wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  wsUrl.pathname = '/ws/proctor'
+  wsUrl.searchParams.set('attemptId', String(currentAttempt.id))
+  wsUrl.searchParams.set('token', session.token)
+
+  return wsUrl.toString()
+}
+
 function startFrameCapture (video) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
 
-  const WS_URL = window.PROCTOR_WS_URL || 'ws://localhost:8000/proctor'
   let ws = null
   let intervalId = null
   let hasConnectedOnce = false
 
   function connect () {
-    ws = new WebSocket(WS_URL)
+    const wsUrl = getProctorWebSocketUrl()
+
+    if (!wsUrl) {
+      setTimeout(connect, 1000)
+      return
+    }
+
+    ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       console.log('[Proctor] WebSocket connected')
@@ -1839,7 +1866,6 @@ function startFrameCaptureWithOverlay (video) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
 
-  const WS_URL = window.PROCTOR_WS_URL || 'ws://localhost:8000/proctor'
   let ws = null
   let intervalId = null
   let reconnectTimeoutId = null
@@ -1856,7 +1882,14 @@ function startFrameCaptureWithOverlay (video) {
       return
     }
 
-    ws = new WebSocket(WS_URL)
+    const wsUrl = getProctorWebSocketUrl()
+
+    if (!wsUrl) {
+      reconnectTimeoutId = setTimeout(connect, 1000)
+      return
+    }
+
+    ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       console.log('[Proctor] WebSocket connected')

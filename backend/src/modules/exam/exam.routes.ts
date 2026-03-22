@@ -61,14 +61,6 @@ export default fp(async (fastify: FastifyInstance) => {
 
   fastify.post('/api/exam/start', {
     onRequest: [authMiddleware], // TODO: Add role check middleware
-    schema: {
-      body: {
-        type: 'object',
-        properties: {
-          examId: { type: 'number' }
-        }
-      }
-    },
     handler: async (request, reply) => {
       // @ts-ignore
       const userId = request.user.id;
@@ -94,6 +86,18 @@ export default fp(async (fastify: FastifyInstance) => {
       const userAgent = request.headers['user-agent'];
 
       try {
+        if (isManualProctoringRequest(request)) {
+          const latest = await getLatestManualAttempt(fastify.pg as any, userId);
+
+          if (latest.attempt?.status === 'submitted') {
+            return reply.code(409).send({
+              success: false,
+              message: 'This exam has already been submitted.',
+              attempt: latest.attempt
+            });
+          }
+        }
+
         const result = await examService.startExam(userId, examId, ipAddress, userAgent);
 
         if (isManualProctoringRequest(request)) {

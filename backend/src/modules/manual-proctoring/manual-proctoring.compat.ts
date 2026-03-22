@@ -131,7 +131,7 @@ export async function getLatestManualAttempt(pg: Pool, userId: number): Promise<
     );
 
     return {
-      attempt: null,
+      attempt: createEmptyManualAttempt(),
       examName: examResult.rows[0]?.exam_name || 'No exam',
       questionPaper: getManualQuestionPaperFilename(examResult.rows[0])
     };
@@ -204,7 +204,7 @@ export async function getManualExamSummary(pg: Pool, userId: number): Promise<{
     timerSeconds: (Number(exam.duration_minutes) || 60) * 60,
     questionPaper: getManualQuestionPaperFilename(exam),
     examName: exam.exam_name || 'Exam',
-    attempt
+    attempt: attempt || createEmptyManualAttempt()
   };
 }
 
@@ -338,6 +338,30 @@ function mapManualAttempt(
       severity: normalizeSeverity(violation.severity),
       createdAt: violation.occurred_at
     }))
+  };
+}
+
+function createEmptyManualAttempt(): {
+  id: null;
+  status: string;
+  startedAt: null;
+  submittedAt: null;
+  submissionReason: null;
+  maxWarnings: number;
+  canResume: boolean;
+  violationCount: number;
+  violations: [];
+} {
+  return {
+    id: null,
+    status: 'not_started',
+    startedAt: null,
+    submittedAt: null,
+    submissionReason: null,
+    maxWarnings: 15,
+    canResume: false,
+    violationCount: 0,
+    violations: []
   };
 }
 

@@ -5,17 +5,15 @@
 
 import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
-import { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import crypto from 'crypto';
 import { WSHandler } from '../websocket/ws.handler';
 import { authenticateWS, canAccessAttempt } from '../websocket/ws.auth';
 import { createViolationService } from '../modules/violation/violation.service';
-import { createExamService } from '../modules/exam/exam.service';
 import { SignatureService } from '../modules/security/signature.service';
 import { ReplayPreventionService } from '../modules/security/replay-prevention.service';
 import logger from '../config/logger';
 import type { ClientMessage, AIMessage } from '../websocket/ws.types';
-import type { ProctoringSessionData } from '../websocket/ws.types';
 
 // Helper to generate UUID
 function uuidv4(): string {
@@ -43,7 +41,6 @@ export default fp<WebSocketProxyOptions>(async (fastify: FastifyInstance, option
 
   const handler = new WSHandler();
   const violationService = createViolationService(fastify.pg as any);
-  const examService = createExamService(fastify.pg as any);
 
   // Get security services
   // @ts-ignore
@@ -57,7 +54,7 @@ export default fp<WebSocketProxyOptions>(async (fastify: FastifyInstance, option
 
   // Violation detected - store in database
   handler.on('violation:detected', async ({ session, message }: { session: any; message: any }) => {
-    if (message.type !== 'violations' || !message.flag) {
+    if (message.type !== 'violation' || !message.flag) {
       return; // Only store actual violations
     }
 
@@ -153,10 +150,9 @@ export default fp<WebSocketProxyOptions>(async (fastify: FastifyInstance, option
       const user = await authenticateWS(request as any);
 
       // Get session parameters from query
-      const { attemptId, sessionId } = request.query as {
-        attemptId?: string;
-        sessionId?: string;
-      };
+      const requestUrl = new URL(request.url || '', `http://${request.headers.host}`);
+      const attemptId = requestUrl.searchParams.get('attemptId') || undefined;
+      const sessionId = requestUrl.searchParams.get('sessionId') || undefined;
 
       if (!attemptId) {
         ws.close(1008, 'Missing attemptId parameter');
