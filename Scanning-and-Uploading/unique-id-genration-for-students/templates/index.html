@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Proctor - QR Generator</title>
+    <!-- Use Montserrat for the wide, bold look from the screenshot -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b1118;
+            --accent: #00e5b0;
+            --text-main: #ffffff;
+            --text-muted: #627183;
+            --border-color: #1a2533;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            background: var(--bg-color);
+        }
+
+        /* Top Tag */
+        .proctor-tag {
+            display: flex;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .proctor-tag .dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            margin-right: 10px;
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; box-shadow: 0 0 8px var(--accent); }
+            50% { opacity: 0.4; box-shadow: 0 0 2px var(--accent); }
+            100% { opacity: 1; box-shadow: 0 0 8px var(--accent); }
+        }
+
+        /* Headlines matching the screenshot */
+        h1 {
+            margin: 0;
+            font-size: 2.8rem;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+
+        h1 .accent-text {
+            color: var(--accent);
+            display: block;
+        }
+
+        p.subtitle {
+            margin-top: 20px;
+            margin-bottom: 40px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+
+        /* Generate Button */
+        .btn-generate {
+            background-color: transparent;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            padding: 18px 0;
+            width: 100%;
+            font-size: 1rem;
+            font-weight: 800;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-generate:hover {
+            background-color: var(--accent);
+            color: var(--bg-color);
+            box-shadow: 0 0 20px rgba(0, 229, 176, 0.4);
+        }
+
+        .btn-generate:disabled {
+            border-color: var(--text-muted);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        #result {
+            display: none;
+            margin-top: 40px;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* QR Code Container mimicking the scanner reticle */
+        .qr-scanner-frame {
+            position: relative;
+            padding: 30px;
+            border-radius: 12px;
+            background: #ffffff;
+            margin: 0 auto 30px auto;
+            max-width: 250px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Drawing scanner corners in cyan like in the image */
+        .qr-scanner-frame::before,
+        .qr-scanner-frame::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: var(--accent);
+            border-style: solid;
+            pointer-events: none;
+        }
+
+        /* Top-Left Corner */
+        .qr-scanner-frame::before {
+            top: -5px;
+            left: -5px;
+            border-width: 4px 0 0 4px;
+            border-radius: 8px 0 0 0;
+        }
+        
+        /* Bottom-Right Corner */
+        .qr-scanner-frame::after {
+            bottom: -5px;
+            right: -5px;
+            border-width: 0 4px 4px 0;
+            border-radius: 0 0 8px 0;
+        }
+
+        .qr-code-img {
+            width: 100%;
+            max-width: 220px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Helper element for Top-Right and Bottom-Left Corners */
+        .qr-scanner-corners-helper {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+        }
+
+        .qr-scanner-corners-helper::before,
+        .qr-scanner-corners-helper::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-color: var(--accent);
+            border-style: solid;
+        }
+
+        /* Top-Right Corner */
+        .qr-scanner-corners-helper::before {
+            top: -5px;
+            right: -5px;
+            border-width: 4px 4px 0 0;
+            border-radius: 0 8px 0 0;
+        }
+
+        /* Bottom-Left Corner */
+        .qr-scanner-corners-helper::after {
+            bottom: -5px;
+            left: -5px;
+            border-width: 0 0 4px 4px;
+            border-radius: 0 0 0 8px;
+        }
+
+        /* Output Data Segment */
+        .data-panel {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .data-item {
+            margin-bottom: 15px;
+        }
+        .data-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .data-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .data-row {
+            display: flex;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            border-left: 2px solid var(--accent);
+        }
+
+        .data-value {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #ffffff;
+            word-break: break-all;
+            padding: 8px 12px;
+            flex-grow: 1;
+        }
+
+        .btn-copy {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--accent);
+            padding: 8px 12px;
+            cursor: pointer;
+            border-left: 1px solid var(--border-color);
+            border-radius: 0 4px 4px 0;
+            transition: background 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-copy:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-copy svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 229, 176, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="proctor-tag">
+        <div class="dot"></div>
+        AI Proctor
+    </div>
+
+    <h1>
+        Exam Gen
+        <span class="accent-text">QR Code</span>
+    </h1>
+    
+    <p class="subtitle">Complete your test submission by generating a unique QR code. Scan the code to begin uploading your answer sheet.</p>
+    
+    <button id="generateBtn" class="btn-generate" onclick="generateQR()">
+        <span id="btnText">Generate QR Code</span>
+        <div id="btnSpinner" class="spinner"></div>
+    </button>
+
+    <div id="result">
+        <div class="qr-scanner-frame">
+            <div class="qr-scanner-corners-helper"></div>
+            <img id="qrImage" class="qr-code-img" src="" alt="Submission QR Code">
+        </div>
+        
+        <div class="data-panel">
+            <div class="data-item">
+                <span class="data-label">Unique Student Token</span>
+                <div class="data-row">
+                    <div class="data-value" id="tokenValue"></div>
+                    <button class="btn-copy" onclick="copyToClipboard('tokenValue')" title="Copy Token">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="data-item">
+                <span class="data-label">Target App URL</span>
+                <div class="data-row">
+                    <div class="data-value" id="urlValue"></div>
+                    <button class="btn-copy" onclick="copyToClipboard('urlValue')" title="Copy URL">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function generateQR() {
+        const btn = document.getElementById('generateBtn');
+        const btnText = document.getElementById('btnText');
+        const spinner = document.getElementById('btnSpinner');
+        const resultDiv = document.getElementById('result');
+        const qrImage = document.getElementById('qrImage');
+        const tokenValue = document.getElementById('tokenValue');
+        const urlValue = document.getElementById('urlValue');
+
+        btn.disabled = true;
+        btnText.style.display = 'none';
+        spinner.style.display = 'block';
+
+        try {
+            await new Promise(r => setTimeout(r, 600));
+
+            const response = await fetch('/generate_qr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const data = await response.json();
+            
+            qrImage.src = 'data:image/png;base64,' + data.qr_code_base64;
+            tokenValue.innerText = data.token;
+            urlValue.innerText = data.url;
+            
+            resultDiv.style.display = 'block';
+            
+            btn.style.display = 'none';
+
+        } catch (error) {
+            console.error('Error generating QR code:', error);
+            alert('Failed to generate. Ensure the python backend is running.');
+            btn.disabled = false;
+            btnText.style.display = 'block';
+            spinner.style.display = 'none';
+        }
+    }
+
+    async function copyToClipboard(elementId) {
+        const textToCopy = document.getElementById(elementId).innerText;
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            alert("Copied to clipboard!");
+        } catch (err) {
+            console.error('Failed to copy via Clipboard API: ', err);
+            
+            // Fallback for older browsers or HTTP context without secure context
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = textToCopy;
+                textArea.style.position = "fixed";  // Avoid scrolling to bottom
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert("Copied to clipboard!");
+            } catch (fallbackErr) {
+                console.error('Fallback failed: ', fallbackErr);
+                alert("Copy failed. Please manually select the text.");
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

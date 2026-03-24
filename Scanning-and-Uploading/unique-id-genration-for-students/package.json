@@ -1,0 +1,25 @@
+{
+  "name": "dsc-unique-id-genration-module",
+  "version": "1.0.0",
+  "description": "This module is designed for a remote proctor application. It generates a unique token for each student completing a test, and produces a QR Code that links directly to a mobile client URL with the appended token. Students can scan this QR code with their mobile devices to securely upload their physical answer sheets.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vjk-2k5/DSC-Unique-ID-genration-Module.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/vjk-2k5/DSC-Unique-ID-genration-Module/issues"
+  },
+  "homepage": "https://github.com/vjk-2k5/DSC-Unique-ID-genration-Module#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "qrcode": "^1.5.4"
+  }
+}
