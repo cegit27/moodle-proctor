@@ -1,8 +1,3 @@
-// ============================================================================
-// VideoStream Component
-// Displays a single video stream from a student
-// ============================================================================
-
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -21,7 +16,7 @@ export interface VideoStreamProps {
 export function VideoStream({
   stream,
   studentName,
-  peerId: _peerId,
+  peerId,
   isProducing,
   connectionState,
   videoEnabled,
@@ -38,70 +33,76 @@ export function VideoStream({
     }
   }, [stream]);
 
-  const statusColor = {
-    connecting: 'bg-yellow-500',
-    connected: 'bg-green-500',
-    disconnected: 'bg-red-500',
+  const connectionTone = {
+    connecting: 'bg-amber-400',
+    connected: 'bg-emerald-400',
+    disconnected: 'bg-red-400',
   }[connectionState];
 
   return (
-    <div className="relative w-full h-full bg-black rounded-lg overflow-hidden shadow-lg group hover:shadow-xl transition-shadow">
-      {/* Video Element */}
+    <article className="group relative h-full overflow-hidden rounded-[22px] border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/20">
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={false}
-        className="w-full h-full object-cover"
+        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
       />
 
-      {/* Status Indicator */}
-      <div className="absolute top-2 left-2 flex items-center gap-2">
-        <div className={`h-3 w-3 rounded-full ${statusColor}`} />
-        <span className="text-xs font-semibold text-white bg-black bg-opacity-50 px-2 py-1 rounded">
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between p-3">
+        <div className="flex items-center gap-2 rounded-full bg-slate-950/65 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+          <span className={`h-2.5 w-2.5 rounded-full ${connectionTone}`} />
           {connectionState}
-        </span>
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full bg-slate-950/65 px-3 py-1.5 text-[11px] font-medium text-slate-200 backdrop-blur-sm">
+          <span className="truncate">{peerId}</span>
+        </div>
       </div>
 
-      {/* Student Name */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-3">
-        <p className="text-white font-semibold text-sm truncate">
-          {studentName}
-        </p>
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent p-4">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+              Student feed
+            </p>
+            <p className="mt-1 truncate text-base font-semibold text-white">{studentName}</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span
+              className={[
+                'flex h-9 w-9 items-center justify-center rounded-full border text-white backdrop-blur-sm',
+                videoEnabled
+                  ? 'border-emerald-400/30 bg-emerald-500/20'
+                  : 'border-red-400/30 bg-red-500/20'
+              ].join(' ')}
+            >
+              {videoEnabled ? <FiVideo size={15} /> : <FiVideoOff size={15} />}
+            </span>
+            <span
+              className={[
+                'flex h-9 w-9 items-center justify-center rounded-full border text-white backdrop-blur-sm',
+                audioEnabled
+                  ? 'border-emerald-400/30 bg-emerald-500/20'
+                  : 'border-red-400/30 bg-red-500/20'
+              ].join(' ')}
+            >
+              {audioEnabled ? <FiMic size={15} /> : <FiMicOff size={15} />}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Media Controls Overlay */}
-      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        {videoEnabled ? (
-          <div className="bg-green-600 text-white p-1.5 rounded-full">
-            <FiVideo size={14} />
-          </div>
-        ) : (
-          <div className="bg-red-600 text-white p-1.5 rounded-full">
-            <FiVideoOff size={14} />
-          </div>
-        )}
-
-        {audioEnabled ? (
-          <div className="bg-green-600 text-white p-1.5 rounded-full">
-            <FiMic size={14} />
-          </div>
-        ) : (
-          <div className="bg-red-600 text-white p-1.5 rounded-full">
-            <FiMicOff size={14} />
-          </div>
-        )}
-      </div>
-
-      {/* Fullscreen Background when Not Producing */}
       {!isProducing && (
-        <div className="absolute inset-0 bg-gray-700 bg-opacity-50 flex items-center justify-center">
-          <div className="text-center">
-            <FiVideoOff size={32} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-300 text-xs">Camera Off</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/72 backdrop-blur-sm">
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-5 text-center">
+            <FiVideoOff size={28} className="mx-auto text-slate-200" />
+            <p className="mt-3 text-sm font-semibold text-white">Camera paused</p>
+            <p className="mt-1 text-xs text-slate-300">Waiting for the student video feed.</p>
           </div>
         </div>
       )}
-    </div>
+    </article>
   );
 }
