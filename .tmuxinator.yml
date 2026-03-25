@@ -1,6 +1,6 @@
 name: moodle-proctor
 root: /home/aryaniyaps/web-projects/moodle-proctor
-
+pre_window: set -g mouse on  # Applies before windows
 # Optional: Attach to session when running tmuxinator
 attach: true
 

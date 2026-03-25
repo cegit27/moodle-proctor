@@ -33,3 +33,4 @@ ai_proctoring/screenshots/
 ai_proctoring/violations.jsonl
 ai_proctoring/report*
 ai_proctoring/reports/
+.gstack/

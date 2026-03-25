@@ -24,6 +24,7 @@ import violationRoutes from './modules/violation/violation.routes';
 import teacherRoutes from './modules/teacher/teacher.routes';
 import teacherSSE from './modules/teacher/teacher.sse';
 import manualProctoringRoutes from './modules/manual-proctoring/manual-proctoring.routes';
+import roomRoutes from './modules/room/room.routes';
 
 // ============================================================================
 // Create Fastify App
@@ -143,6 +144,7 @@ export async function createApp() {
   await app.register(teacherRoutes);
   await app.register(teacherSSE);
   await app.register(manualProctoringRoutes);
+  await app.register(roomRoutes);
 
   // ==========================================================================
   // 404 Handler
