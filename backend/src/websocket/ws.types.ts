@@ -92,6 +92,7 @@ export interface ProctoringSession {
   sessionId: string;
   userId: number;
   examId: number;
+  roomId: number; // Issue #3: Cache roomId in memory to prevent N+1 queries on violations
   status: 'starting' | 'active' | 'stopping' | 'stopped';
   clientConnection: WSConnection | null;
   aiConnection: AIConnection | null;

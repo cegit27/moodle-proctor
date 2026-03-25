@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { EventEmitter } from 'events';
+import type { Pool } from 'pg';
 import type { ProctoringSession, WSConnection, AIConnection } from './ws.types';
 import type { ClientMessage, AIMessage } from './ws.types';
 import logger from '../config/logger';
@@ -16,19 +17,50 @@ export class WSHandler extends EventEmitter {
   private sessions = new Map<string, ProctoringSession>();
   private connections = new Map<any, string>(); // socket -> sessionId
 
+  constructor(private pg?: Pool) {
+    super();
+  }
+
   /**
    * Create a new proctoring session
+   * Issue #3: Cache roomId in memory to prevent N+1 queries on every violation
    */
-  createSession(sessionData: {
+  async createSession(sessionData: {
     attemptId: number;
     userId: number;
     examId: number;
     sessionId: string;
     ipAddress: string;
     userAgent: string;
-  }): ProctoringSession {
+  }): Promise<ProctoringSession> {
+    // Issue #3: Look up and cache roomId when session is created
+    let roomId = 0;
+    if (this.pg) {
+      try {
+        const roomResult = await this.pg.query(
+          `SELECT id FROM proctoring_rooms
+           WHERE exam_id = $1
+           AND status = 'activated'
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [sessionData.examId]
+        );
+
+        if (roomResult.rows.length > 0) {
+          roomId = roomResult.rows[0].id;
+          logger.info(`Cached roomId ${roomId} for session ${sessionData.sessionId} (exam ${sessionData.examId})`);
+        } else {
+          logger.warn(`No active room found for exam ${sessionData.examId} - session ${sessionData.sessionId} will not have room context`);
+        }
+      } catch (error) {
+        logger.error(`Failed to lookup room for session ${sessionData.sessionId}:`, error);
+        // Continue without roomId - system will still work but violations won't be room-scoped
+      }
+    }
+
     const session: ProctoringSession = {
       ...sessionData,
+      roomId, // Issue #3: Cached in memory
       status: 'starting',
       clientConnection: null,
       aiConnection: null,
@@ -37,7 +69,7 @@ export class WSHandler extends EventEmitter {
     };
 
     this.sessions.set(sessionData.sessionId, session);
-    logger.info(`Created proctoring session: ${sessionData.sessionId}`);
+    logger.info(`Created proctoring session: ${sessionData.sessionId}${roomId ? ` (room ${roomId})` : ''}`);
 
     return session;
   }
@@ -161,8 +193,15 @@ export class WSHandler extends EventEmitter {
     session.lastActivity = Date.now();
 
     if (message.type === 'violation') {
-      // Store violation in database
-      this.emit('violation:detected', { session, message });
+      // Issue #3: Include cached roomId in violation event for room-based routing
+      // This prevents N+1 queries on every violation
+      this.emit('violation:detected', {
+        session,
+        message,
+        roomId: session.roomId, // Cached in memory - no DB query needed
+        attemptId: session.attemptId,
+        examId: session.examId
+      });
 
       // Forward to client
       this.sendToClient(sessionId, message);

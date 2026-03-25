@@ -15,7 +15,7 @@ import type { AIMessage } from '../../websocket/ws.types';
 // ============================================================================
 
 interface SSEEvent {
-  type: 'violation' | 'attempt_status' | 'exam_start' | 'exam_end' | 'student_action';
+  type: 'violation' | 'attempt_status' | 'exam_start' | 'exam_end' | 'student_action' | 'student_joined' | 'student_left' | 'student_warned' | 'student_kicked';
   data: Record<string, unknown>;
   timestamp: number;
 }
@@ -24,7 +24,8 @@ interface SSEClient {
   userId: number;
   reply: FastifyReply;
   filters: {
-    examId?: number;
+    roomId?: number; // Issue #2: Room-scoped filtering (replaces examId)
+    examId?: number; // Backwards compatibility
     userId?: number;
   };
   isConnected: boolean;
@@ -39,8 +40,9 @@ class SSEManager extends EventEmitter {
 
   /**
    * Add a new SSE client
+   * Issue #2: Support room-scoped filtering
    */
-  addClient(reply: FastifyReply, userId: number, filters: { examId?: number; userId?: number }): void {
+  addClient(reply: FastifyReply, userId: number, filters: { roomId?: number; examId?: number; userId?: number }): void {
     const client: SSEClient = {
       userId,
       reply,
@@ -55,7 +57,10 @@ class SSEManager extends EventEmitter {
       type: 'student_action',
       data: {
         action: 'connected',
-        message: 'Connected to real-time updates'
+        message: filters.roomId
+          ? `Connected to room ${filters.roomId}`
+          : 'Connected to real-time updates',
+        roomId: filters.roomId
       },
       timestamp: Date.now()
     });
@@ -104,14 +109,33 @@ class SSEManager extends EventEmitter {
 
   /**
    * Broadcast event to all matching clients
+   * Issue #2: Room-scoped filtering - only send to clients monitoring this room
    */
-  broadcast(event: SSEEvent, filters?: { examId?: number; userId?: number }): void {
+  broadcast(event: SSEEvent, filters?: { roomId?: number; examId?: number; userId?: number }): void {
     for (const [reply, client] of this.clients.entries()) {
       // Check if client should receive this event
-      if (filters?.examId && client.filters.examId && filters.examId !== client.filters.examId) {
-        continue;
+      // Priority: roomId > examId > userId (room is most specific)
+
+      // Room-scoped filtering (Issue #2)
+      if (filters?.roomId && client.filters.roomId) {
+        if (filters.roomId !== client.filters.roomId) {
+          continue; // Different room, skip
+        }
+      } else if (filters?.roomId && !client.filters.roomId) {
+        continue; // Event has roomId but client not in room, skip
+      } else if (!filters?.roomId && client.filters.roomId) {
+        continue; // Client in room but event has no roomId, skip (backwards compat: check examId below)
       }
 
+      // Backwards compatibility: examId filtering
+      if (!filters?.roomId && !client.filters.roomId) {
+        // Only check examId if neither event nor client has roomId
+        if (filters?.examId && client.filters.examId && filters.examId !== client.filters.examId) {
+          continue;
+        }
+      }
+
+      // User filtering (for targeted events like warnings)
       if (filters?.userId && client.filters.userId && filters.userId !== client.filters.userId) {
         continue;
       }
@@ -168,6 +192,7 @@ export default fp(async (fastify: FastifyInstance) => {
 
   /**
    * SSE endpoint for real-time updates
+   * Issue #2: Accept room_id parameter for room-scoped alerts
    */
   fastify.get('/api/teacher/events', {
     onRequest: [authMiddleware]
@@ -178,6 +203,8 @@ export default fp(async (fastify: FastifyInstance) => {
     requireRole(user, ['teacher']);
 
     // Get filters from query
+    // Issue #2: Support room_id for room-based monitoring
+    const roomId = (request.query as any).room_id ? parseInt((request.query as any).room_id, 10) : undefined;
     const examId = (request.query as any).examId ? parseInt((request.query as any).examId, 10) : undefined;
     const userId = (request.query as any).userId ? parseInt((request.query as any).userId, 10) : undefined;
 
@@ -187,8 +214,13 @@ export default fp(async (fastify: FastifyInstance) => {
     reply.raw.setHeader('Connection', 'keep-alive');
     reply.raw.setHeader('X-Accel-Buffering', 'no');
 
+    // Issue #2: Disconnect old SSE connection before creating new one (prevent memory leak)
+    if (roomId) {
+      sseManager.disconnectUser(user.id);
+    }
+
     // Add client to manager
-    sseManager.addClient(reply, user.id, { examId, userId });
+    sseManager.addClient(reply, user.id, { roomId, examId, userId });
 
     // Send periodic heartbeat to keep connection alive
     const heartbeatInterval = setInterval(() => {
