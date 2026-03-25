@@ -1,8 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { FiActivity, FiArrowRight, FiShield, FiVideo } from "react-icons/fi";
+
+const platformStats = [
+  { label: "Live Rooms", value: "12", icon: <FiVideo className="h-4 w-4" /> },
+  { label: "Open Alerts", value: "05", icon: <FiActivity className="h-4 w-4" /> },
+  { label: "Secure Reviews", value: "98%", icon: <FiShield className="h-4 w-4" /> }
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,6 +24,7 @@ export default function LoginPage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+
     try {
       const res = await fetch("/api/auth/backend-login", {
         method: "POST",
@@ -37,105 +44,132 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-white">
-      <div className="grid w-full max-w-4xl grid-cols-1 lg:grid-cols-[1.1fr,0.9fr] gap-8 px-6">
-        <section className="bg-white rounded-lg border border-gray-200 shadow-sm px-8 py-8 sm:px-10 sm:py-10 flex flex-col justify-center">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
-                PV
+    <main className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-7xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-slate-900 px-6 py-8 text-white shadow-2xl shadow-slate-900/15 sm:px-8 sm:py-10 lg:px-10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(96,165,250,0.3),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(45,212,191,0.18),_transparent_26%)]" />
+          <div className="relative flex h-full flex-col justify-between gap-8">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-sm font-bold text-white backdrop-blur-sm">
+                  PV
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200">
+                    Exam Operations
+                  </p>
+                  <h1 className="mt-1 text-lg font-semibold">ProctorVision</h1>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-900">ProctorVision</span>
-                <span className="text-[11px] text-gray-600 uppercase tracking-wide font-medium">
-                  Teacher Console
-                </span>
-              </div>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight mt-4">
-              Sign in
-            </h1>
-            <p className="mt-3 text-base text-gray-600">
-              Access the live monitoring dashboard and AI proctoring tools.
-            </p>
-          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error ? (
-              <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {error}
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-900">
-                Moodle Username or Email
-              </label>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="proctor@university.edu"
-                disabled={submitting}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-900">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                disabled={submitting}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <div className="flex justify-end text-sm text-gray-600 mt-1">
-                <button type="button" className="text-blue-600 hover:text-blue-700 font-medium">
-                  Forgot password?
-                </button>
+              <div className="mt-10 max-w-2xl">
+                <p className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-100">
+                  Unified Monitoring Workspace
+                </p>
+                <h2 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">
+                  Run secure exams from one calm, responsive control center.
+                </h2>
+                <p className="mt-5 max-w-xl text-sm leading-7 text-slate-300 sm:text-base">
+                  Review live feeds, manage alerts, and keep evidence workflows moving with a
+                  dashboard built for smooth exam operations.
+                </p>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-6 w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-60"
-            >
-              {submitting ? "Signing in…" : "Sign In"}
-            </button>
-          </form>
-        </section>
-
-        <section className="hidden lg:flex flex-col justify-between bg-blue-50 rounded-lg border border-blue-200 px-7 py-7">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-widest font-bold text-blue-900">
-                Live Exam Snapshot
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700 border border-green-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-600 animate-pulse" />
-                Active
-              </span>
+            <div className="grid gap-4 md:grid-cols-3">
+              {platformStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-[24px] border border-white/10 bg-white/10 px-4 py-4 backdrop-blur-sm"
+                >
+                  <div className="flex items-center justify-between text-sky-100">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em]">{stat.label}</p>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10">
+                      {stat.icon}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-3xl font-semibold text-white">{stat.value}</p>
+                </div>
+              ))}
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+
+            <div className="grid gap-3 sm:grid-cols-3">
               {Array.from({ length: 6 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="aspect-video rounded-lg bg-gray-200 border border-blue-200"
+                  className="aspect-video rounded-[20px] border border-white/10 bg-white/10 backdrop-blur-sm"
                 />
               ))}
             </div>
           </div>
-          <div className="mt-6 space-y-2 text-sm text-gray-700">
-            <p className="font-medium">Monitor in real-time</p>
-            <p className="text-gray-600">Live webcam feeds, AI alerts, and student activity for secure, scalable examination proctoring.</p>
+        </section>
+
+        <section className="dashboard-panel flex rounded-[32px] px-6 py-8 sm:px-8 sm:py-10">
+          <div className="m-auto w-full max-w-xl">
+            <div className="mb-8">
+              <p className="dashboard-kicker">Secure Access</p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                Sign in to continue
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-500 sm:text-base">
+                Access the monitoring workspace, incident queue, participant roster, and reporting tools.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {error}
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-900">
+                  Moodle Username or Email
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="proctor@university.edu"
+                  disabled={submitting}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-slate-900">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  disabled={submitting}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-slate-500">Protected by your Moodle account</span>
+                <button type="button" className="font-semibold text-blue-700 transition-colors hover:text-blue-800">
+                  Forgot password?
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3.5 text-base font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+              >
+                <span>{submitting ? "Signing in..." : "Enter Dashboard"}</span>
+                <FiArrowRight className="h-4 w-4" />
+              </button>
+            </form>
           </div>
         </section>
       </div>
     </main>
   );
 }
-

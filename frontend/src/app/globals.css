@@ -2,25 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --dashboard-bg: #f3f6fb;
+  --dashboard-panel: rgba(255, 255, 255, 0.88);
+  --dashboard-panel-strong: #ffffff;
+  --dashboard-border: rgba(148, 163, 184, 0.2);
+  --dashboard-text: #14213d;
+  --dashboard-muted: #5f6f89;
+  --dashboard-accent: #1d4ed8;
+  --dashboard-success: #0f766e;
+  --dashboard-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+}
+
 html,
 body {
-  @apply bg-white text-gray-900;
+  @apply text-gray-900;
 }
 
 body {
   @apply min-h-screen antialiased;
+  background:
+    radial-gradient(circle at top left, rgba(29, 78, 216, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(13, 148, 136, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--dashboard-bg) 42%, #eef3f9 100%);
+  color: var(--dashboard-text);
+  font-family: "Segoe UI", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-.glass-surface {
-  @apply bg-white border border-gray-200;
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(29, 78, 216, 0.18);
+}
+
+.glass-surface,
+.dashboard-panel {
+  background: var(--dashboard-panel);
+  border: 1px solid var(--dashboard-border);
+  box-shadow: var(--dashboard-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-panel-strong {
+  background: var(--dashboard-panel-strong);
+  border: 1px solid var(--dashboard-border);
+  box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard-shell {
+  min-height: 100vh;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(244, 247, 251, 0.78));
+}
+
+.dashboard-kicker {
+  @apply text-[11px] font-semibold uppercase tracking-[0.22em];
+  color: var(--dashboard-muted);
+}
+
+.dashboard-title {
+  @apply text-2xl font-semibold tracking-tight md:text-3xl;
+  color: var(--dashboard-text);
 }
 
 .scroll-thin {
   scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 }
 
 .scroll-thin::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 .scroll-thin::-webkit-scrollbar-track {
@@ -28,7 +81,14 @@ body {
 }
 
 .scroll-thin::-webkit-scrollbar-thumb {
-  background-color: rgba(206, 220, 255, 0.7);
+  background-color: transparent;
   border-radius: 9999px;
 }
 
+.scroll-thin:hover {
+  scrollbar-color: rgba(96, 165, 250, 0.45) transparent;
+}
+
+.scroll-thin:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(96, 165, 250, 0.45);
+}

@@ -58,7 +58,7 @@ services:
       - MOODLE_DATABASE_PASSWORD=bitnami
       - MOODLE_DATABASE_NAME=bitnami_moodle
       - MOODLE_USERNAME=admin
-      - MOODLE_PASSWORD=admin123!
+      - MOODLE_PASSWORD=Admin123!
       - MOODLE_EMAIL=admin@example.com
       - MOODLE_SITE_NAME=Local Moodle
     volumes:

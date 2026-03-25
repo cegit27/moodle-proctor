@@ -19,7 +19,7 @@ interface NavItem {
   icon: ReactNode;
 }
 
-const navItems: NavItem[] = [
+export const dashboardNavItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: <FiActivity className="h-4 w-4" /> },
   { label: "Live Monitoring", href: "/dashboard/monitoring", icon: <FiMonitor className="h-4 w-4" /> },
   { label: "AI Alerts", href: "/dashboard/alerts", icon: <FiAlertTriangle className="h-4 w-4" /> },
@@ -33,55 +33,82 @@ export const Sidebar = () => {
   const router = useRouter();
 
   const handleLogout = () => {
-    // Add real logout logic here later
     router.push("/login");
   };
 
   return (
-    <aside className="hidden lg:flex lg:flex-col fixed left-0 top-0 h-screen w-64 bg-white py-6 gap-6 border-r border-gray-200 shadow-sm z-50">
-      
-      {/* Logo Section */}
-      <div className="flex items-center gap-3 px-4">
-        <div className="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+    <aside className="dashboard-panel fixed bottom-4 left-4 top-4 z-40 hidden w-72 overflow-y-auto rounded-[28px] scroll-thin lg:flex lg:flex-col">
+      <div className="flex items-center gap-4 border-b border-slate-200/70 px-6 pb-6 pt-7">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-sm font-bold text-white shadow-lg shadow-slate-900/15">
           PV
         </div>
-        <div className="flex flex-col">
-          <span className="text-sm font-bold text-gray-900">ProctorVision</span>
-          <span className="text-xs text-gray-600 uppercase tracking-wider font-medium">
-            Teacher
-          </span>
+        <div className="min-w-0">
+          <p className="dashboard-kicker">Operations Console</p>
+          <h1 className="truncate text-lg font-semibold text-slate-900">ProctorVision</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage exams, alerts, and live rooms</p>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 flex flex-col gap-1 px-2">
-        {navItems.map((item) => {
-          const active = pathname === item.href;
+      <div className="px-6 py-5">
+        <div className="rounded-3xl bg-slate-900 px-4 py-4 text-white shadow-lg shadow-slate-900/10">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
+            Active Session
+          </p>
+          <p className="mt-3 text-lg font-semibold">Physics Midterm</p>
+          <p className="mt-1 text-sm text-slate-300">Section A / Room 204</p>
+          <div className="mt-4 flex items-center gap-2 text-sm text-emerald-300">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+            Monitoring in progress
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-2 px-4">
+        {dashboardNavItems.map((item) => {
+          const active =
+            item.href === "/dashboard"
+              ? pathname === item.href
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={[
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
                 active
-                  ? "bg-blue-100 text-blue-700 border border-blue-300"
-                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  : "text-slate-600 hover:bg-white/85 hover:text-slate-900"
               ].join(" ")}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              <span
+                className={[
+                  "flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
+                  active
+                    ? "border-white/20 bg-white/10 text-white"
+                    : "border-slate-200 bg-slate-50 text-slate-500 group-hover:border-slate-300 group-hover:bg-white"
+                ].join(" ")}
+              >
+                {item.icon}
+              </span>
+              <span className="flex-1">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Logout Button */}
-      <div className="px-2">
+      <div className="border-t border-slate-200/70 px-4 py-4">
+        <div className="mb-3 rounded-2xl bg-blue-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
+            Session Lead
+          </p>
+          <p className="mt-2 text-sm font-semibold text-slate-900">Dr. Alice Nguyen</p>
+          <p className="text-sm text-slate-500">Exam Operations</p>
+        </div>
         <button
           type="button"
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-700"
         >
           <FiLogOut className="h-4 w-4" />
           <span>Logout</span>

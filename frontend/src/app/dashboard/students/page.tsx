@@ -1,57 +1,81 @@
 import { students } from "@mock/data";
 import { StatusBadge } from "@components/StatusBadge";
 
+const connectionTone = {
+  Excellent: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  Good: "border-teal-200 bg-teal-50 text-teal-700",
+  Fair: "border-amber-200 bg-amber-50 text-amber-700",
+  Poor: "border-red-200 bg-red-50 text-red-700"
+} as const;
+
 export default function StudentsPage() {
+  const normalCount = students.filter((student) => student.status === "normal").length;
+
   return (
-    <section className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-      <div className="px-6 py-4 border-b border-gray-200 bg-blue-50 flex items-center justify-between">
-        <div className="flex flex-col">
-          <h2 className="text-lg font-bold text-gray-900">
-            Students
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            All students registered for the examination session
-          </p>
+    <section className="dashboard-panel overflow-hidden rounded-[28px]">
+      <div className="border-b border-slate-200/80 px-6 py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="dashboard-kicker">Roster Management</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+              Students
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Review every registered student, monitoring status, and connection quality for the session.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[300px]">
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Total students
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{students.length}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Normal status
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{normalCount}</p>
+            </div>
+          </div>
         </div>
-        <span className="text-sm font-bold text-blue-600 bg-blue-100 px-3 py-1.5 rounded">
-          {students.length} Total
-        </span>
       </div>
 
       <div className="overflow-x-auto scroll-thin">
         <table className="min-w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              <th className="text-left px-6 py-3 font-semibold">Student Name</th>
-              <th className="text-left px-6 py-3 font-semibold">ID</th>
-              <th className="text-left px-6 py-3 font-semibold">Exam</th>
-              <th className="text-left px-6 py-3 font-semibold">Status</th>
-              <th className="text-left px-6 py-3 font-semibold">Connection</th>
+          <thead className="bg-slate-50/80">
+            <tr className="text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <th className="px-6 py-4">Student</th>
+              <th className="px-6 py-4">ID</th>
+              <th className="px-6 py-4">Exam</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Connection</th>
             </tr>
           </thead>
           <tbody>
-            {students.map((student, idx) => (
+            {students.map((student) => (
               <tr
                 key={student.id}
-                className={[
-                  "border-b border-gray-100 hover:bg-blue-50 transition-colors",
-                  idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                ].join(" ")}
+                className="border-t border-slate-200/80 bg-white transition-colors hover:bg-slate-50/80"
               >
-                <td className="px-6 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                  {student.name}
+                <td className="px-6 py-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{student.name}</p>
+                    <p className="mt-1 text-xs text-slate-400">Active roster entry</p>
+                  </div>
                 </td>
-                <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
-                  {student.id}
-                </td>
-                <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
-                  {student.exam}
-                </td>
-                <td className="px-6 py-3">
+                <td className="px-6 py-4 text-sm font-medium text-slate-600">{student.id}</td>
+                <td className="px-6 py-4 text-sm text-slate-600">{student.exam}</td>
+                <td className="px-6 py-4">
                   <StatusBadge status={student.status} />
                 </td>
-                <td className="px-6 py-3 text-sm text-gray-600">
-                  {student.connection}
+                <td className="px-6 py-4">
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${connectionTone[student.connection]}`}
+                  >
+                    {student.connection}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -61,4 +85,3 @@ export default function StudentsPage() {
     </section>
   );
 }
-

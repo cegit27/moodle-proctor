@@ -1,74 +1,91 @@
 import { examReports } from "@mock/data";
 
+const reportStatusTone = {
+  Completed: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  Processing: "border-blue-200 bg-blue-50 text-blue-700",
+  Pending: "border-amber-200 bg-amber-50 text-amber-700",
+  Failed: "border-red-200 bg-red-50 text-red-700"
+} as const;
+
 export const ReportTable = () => {
+  const completedCount = examReports.filter((report) => report.uploadStatus === "Completed").length;
+
   return (
-    <section className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
-      <div className="px-6 py-4 border-b border-gray-200 bg-blue-50 flex items-center justify-between">
-        <div className="flex flex-col">
-          <h2 className="text-lg font-bold text-gray-900">
-            Exam Reports
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Post-exam evidence packages and AI summaries
-          </p>
+    <section className="dashboard-panel overflow-hidden rounded-[28px]">
+      <div className="border-b border-slate-200/80 px-6 py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="dashboard-kicker">Evidence Library</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+              Exam reports
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Review evidence packages, upload progress, and post-exam AI summaries from one place.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[300px]">
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Total reports
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{examReports.length}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Completed
+              </p>
+              <p className="mt-2 text-2xl font-semibold text-slate-900">{completedCount}</p>
+            </div>
+          </div>
         </div>
-        <span className="text-sm font-bold text-blue-600 bg-blue-100 px-3 py-1.5 rounded">
-          {examReports.length} Total
-        </span>
       </div>
 
       <div className="overflow-x-auto scroll-thin">
         <table className="min-w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              <th className="text-left px-6 py-3 font-semibold">Student</th>
-              <th className="text-left px-6 py-3 font-semibold">Exam</th>
-              <th className="text-center px-6 py-3 font-semibold">Alerts</th>
-              <th className="text-left px-6 py-3 font-semibold">Status</th>
-              <th className="text-right px-6 py-3 font-semibold">Actions</th>
+          <thead className="bg-slate-50/80">
+            <tr className="text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <th className="px-6 py-4">Student</th>
+              <th className="px-6 py-4">Exam</th>
+              <th className="px-6 py-4 text-center">Alerts</th>
+              <th className="px-6 py-4">Upload Status</th>
+              <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {examReports.map((report, idx) => (
+            {examReports.map((report) => (
               <tr
                 key={report.id}
-                className={[
-                  "border-b border-gray-100 hover:bg-blue-50 transition-colors",
-                  idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                ].join(" ")}
+                className="border-t border-slate-200/80 bg-white transition-colors hover:bg-slate-50/80"
               >
-                <td className="px-6 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                  {report.studentName}
+                <td className="px-6 py-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{report.studentName}</p>
+                    <p className="mt-1 text-xs text-slate-400">{report.id}</p>
+                  </div>
                 </td>
-                <td className="px-6 py-3 text-sm text-gray-600 whitespace-nowrap">
-                  {report.exam}
+                <td className="px-6 py-4 text-sm font-medium text-slate-600">{report.exam}</td>
+                <td className="px-6 py-4 text-center">
+                  <span className="inline-flex min-w-10 items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                    {report.alertsCount}
+                  </span>
                 </td>
-                <td className="px-6 py-3 text-center text-sm font-medium text-gray-900 whitespace-nowrap">
-                  {report.alertsCount}
-                </td>
-                <td className="px-6 py-3">
+                <td className="px-6 py-4">
                   <span
-                    className={[
-                      "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border",
-                      report.uploadStatus === "Completed"
-                        ? "bg-green-100 text-green-700 border-green-300"
-                        : report.uploadStatus === "Processing"
-                        ? "bg-blue-100 text-blue-700 border-blue-300"
-                        : report.uploadStatus === "Pending"
-                        ? "bg-amber-100 text-amber-700 border-amber-300"
-                        : "bg-red-100 text-red-700 border-red-300"
-                    ].join(" ")}
+                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${reportStatusTone[report.uploadStatus]}`}
                   >
                     {report.uploadStatus}
                   </span>
                 </td>
-                <td className="px-6 py-3 text-right whitespace-nowrap text-sm">
-                  <button className="text-blue-600 hover:text-blue-800 font-medium mr-4">
-                    View
-                  </button>
-                  <button className="text-gray-600 hover:text-gray-900 font-medium">
-                    Download
-                  </button>
+                <td className="px-6 py-4 text-right text-sm">
+                  <div className="flex justify-end gap-2">
+                    <button className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 font-semibold text-blue-700 transition-colors hover:bg-blue-100">
+                      View
+                    </button>
+                    <button className="rounded-full border border-slate-200 bg-white px-4 py-2 font-semibold text-slate-700 transition-colors hover:bg-slate-100">
+                      Download
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -78,4 +95,3 @@ export const ReportTable = () => {
     </section>
   );
 };
-

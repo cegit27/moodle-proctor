@@ -2,9 +2,8 @@ import { AlertPanel } from "@components/AlertPanel";
 
 export default function AlertsPage() {
   return (
-    <div className="grid grid-cols-1">
+    <section className="space-y-6">
       <AlertPanel />
-    </div>
+    </section>
   );
 }
-
