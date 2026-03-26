@@ -5,15 +5,29 @@
 
 import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
-import { createProctoringRoomService } from './room.service';
+import { createProctoringRoomService, generateEnrollmentSignature } from './room.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import type {
   CreateRoomRequest,
   CreateRoomResponse,
   JoinRoomResponse,
+  StudentJoinRequest,
+  StudentJoinResponse,
   ActiveRoomsResponse,
   CloseRoomResponse
 } from './room.schema';
+
+// ============================================================================
+// Rate Limiter Configuration
+// ============================================================================
+
+const joinRateLimitConfig = {
+  max: 10, // Maximum 10 requests
+  timeWindow: '1 minute', // Per minute
+  allowList: [], // No IP exceptions
+  continueExceeding: true, // Don't ban, just slow down
+  skipOnError: true, // Allow requests if rate limiter fails
+};
 
 // ============================================================================
 // Routes Plugin
@@ -21,6 +35,11 @@ import type {
 
 export default fp(async (fastify: FastifyInstance) => {
   const roomService = createProctoringRoomService(fastify.pg as any);
+
+  // Register rate limiter plugin
+  await fastify.register(import('@fastify/rate-limit'), {
+    global: false, // Don't apply to all routes
+  });
 
   // ==========================================================================
   // POST /api/room/create - Create a new proctoring room
@@ -144,12 +163,111 @@ export default fp(async (fastify: FastifyInstance) => {
   });
 
   // ==========================================================================
+  // POST /api/room/:code/join - Student joins a room with invite code
+  // ==========================================================================
+
+  fastify.post('/api/room/:code/join', {
+    config: {
+      rateLimit: joinRateLimitConfig,
+    },
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' }
+        },
+        required: ['code']
+      },
+      body: {
+        type: 'object',
+        properties: {
+          studentName: { type: 'string' },
+          studentEmail: { type: 'string' }
+        },
+        required: ['studentName', 'studentEmail']
+      }
+    },
+    handler: async (request, reply): Promise<StudentJoinResponse> => {
+      const { code } = request.params as { code: string };
+      const body = request.body as StudentJoinRequest;
+
+      // Validate CSRF token for state-changing operation
+      // @ts-ignore - fastify-csrf-protection decorates the request object
+      await reply.csrfProtection(request, reply);
+
+      try {
+        // 1. Get room details (validates room exists)
+        const room = await roomService.getRoomByCode(code);
+
+        // 2. Get or create user
+        const user = await roomService.getOrCreateUserByEmail(
+          body.studentEmail,
+          body.studentName
+        );
+
+        // 3. Enroll student in room
+        const enrollment = await roomService.enrollStudent({
+          roomId: room.id,
+          userId: user.id,
+          studentName: body.studentName,
+          studentEmail: body.studentEmail
+        });
+
+        // Generate signature to prevent enrollment ID tampering
+        const enrollmentSignature = generateEnrollmentSignature(enrollment.id, room.id);
+
+        return {
+          success: true,
+          data: {
+            enrollmentId: enrollment.id,
+            roomId: room.id,
+            roomCode: room.room_code,
+            examName: room.exam_name,
+            courseName: room.course_name,
+            status: room.status,
+            enrollmentSignature // Include signature for validation
+          }
+        };
+      } catch (error) {
+        // Handle specific error types with clear messages
+        if ((error as Error).name === 'RoomNotFoundError') {
+          return reply.code(404).send({
+            success: false,
+            error: 'Invalid invite code'
+          });
+        }
+
+        if ((error as Error).name === 'DuplicateEnrollmentError') {
+          return reply.code(409).send({
+            success: false,
+            error: 'You are already enrolled in this room'
+          });
+        }
+
+        if ((error as Error).name === 'RoomFullError') {
+          return reply.code(429).send({
+            success: false,
+            error: 'This room is full. Please contact the instructor.'
+          });
+        }
+
+        // Generic error handler (catches database connection issues)
+        fastify.log.error({ error }, 'Error during student join');
+        return reply.code(500).send({
+          success: false,
+          error: 'Failed to join room. Please try again.'
+        });
+      }
+    }
+  });
+
+  // ==========================================================================
   // GET /api/room/active - Get teacher's active rooms
   // ==========================================================================
 
   fastify.get('/api/room/active', {
     onRequest: [authMiddleware],
-    handler: async (request, reply): Promise<ActiveRoomsResponse> => {
+    handler: async (request): Promise<ActiveRoomsResponse> => {
       // @ts-ignore
       const teacherId = request.user.id;
 

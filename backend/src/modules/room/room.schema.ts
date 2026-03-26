@@ -15,6 +15,11 @@ export interface JoinRoomRequest {
   attemptId: number;
 }
 
+export interface StudentJoinRequest {
+  studentName: string;
+  studentEmail: string;
+}
+
 export interface CloseRoomRequest {
   roomId: number;
 }
@@ -63,6 +68,19 @@ export interface CloseRoomResponse {
   success: boolean;
   data?: {
     roomId: number;
+    status: string;
+  };
+  error?: string;
+}
+
+export interface StudentJoinResponse {
+  success: boolean;
+  data?: {
+    enrollmentId: number;
+    roomId: number;
+    roomCode: string;
+    examName: string;
+    courseName: string;
     status: string;
   };
   error?: string;

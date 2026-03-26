@@ -26,7 +26,8 @@ const webrtcPlugin: FastifyPluginAsync = async (app) => {
     logger.info('WebRTC plugin registered');
   } catch (error) {
     logger.error('Failed to register WebRTC plugin:', error);
-    throw error;
+    logger.error('WebRTC features will be disabled');
+    // Don't throw - allow the app to start without WebRTC
   }
 };
 

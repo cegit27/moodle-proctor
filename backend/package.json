@@ -28,8 +28,10 @@
   "dependencies": {
     "@fastify/cookie": "^9.3.0",
     "@fastify/cors": "^8.5.0",
+    "@fastify/csrf-protection": "^7.1.0",
     "@fastify/jwt": "^7.2.4",
     "@fastify/postgres": "^5.2.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@fastify/websocket": "^8.3.0",
     "axios": "^1.6.5",
     "dotenv": "^16.3.1",

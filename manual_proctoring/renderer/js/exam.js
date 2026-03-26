@@ -24,6 +24,84 @@ let liveAiWarnings = []
 let liveAiAdvisories = []
 let pinnedExamStatus = null
 
+// ============================================================================
+// Room-Based Enrollment Support
+// ============================================================================
+
+let roomEnrollment = null
+
+/**
+ * Decrypt and retrieve enrollment data from localStorage
+ * Handles both encrypted (safeStorage) and unencrypted (legacy) data
+ */
+async function getRoomEnrollment() {
+  const encryptedKey = 'roomEnrollmentEncrypted';
+  const legacyKey = 'roomEnrollment';
+
+  try {
+    // Try to read and decrypt encrypted data first
+    const encryptedData = localStorage.getItem(encryptedKey);
+    if (encryptedData) {
+      if (window.electron && window.electron.safeStorage) {
+        const decryptedString = await window.electron.safeStorage.decryptString(encryptedData);
+        return JSON.parse(decryptedString);
+      } else {
+        // safeStorage not available, can't decrypt
+        console.warn('Encrypted data found but safeStorage unavailable');
+        return null;
+      }
+    }
+
+    // Fallback: try reading unencrypted legacy data
+    const legacyData = localStorage.getItem(legacyKey);
+    if (legacyData) {
+      console.warn('Reading unencrypted enrollment data (should migrate to encrypted)');
+      return JSON.parse(legacyData);
+    }
+  } catch (error) {
+    console.error('Error decrypting/parsing room enrollment:', error);
+  }
+
+  return null;
+}
+
+function clearRoomEnrollment() {
+  // Clear both encrypted and unencrypted versions
+  localStorage.removeItem('roomEnrollmentEncrypted');
+  localStorage.removeItem('roomEnrollment');
+  roomEnrollment = null;
+}
+
+async function isRoomBasedSession() {
+  const enrollment = await getRoomEnrollment();
+  return !!enrollment;
+}
+
+// Modified fetchWithSession to support room-based enrollment
+async function fetchWithSessionOrRoom(url, options = {}) {
+  const roomData = await getRoomEnrollment();
+
+  if (roomData) {
+    // Room-based session: include room enrollment info in headers
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...MANUAL_PROCTORING_HEADERS,
+        ...(options.headers || {}),
+        'X-Room-Enrollment-Id': roomData.enrollmentId.toString(),
+        'X-Room-Id': roomData.roomId.toString(), // Include for signature validation
+        'X-Room-Code': roomData.roomCode,
+        'X-Student-Email': roomData.studentEmail,
+        'X-Room-Enrollment-Signature': roomData.enrollmentSignature || '' // Include signature for validation
+      }
+    })
+    return response
+  } else {
+    // Traditional authenticated session
+    return await fetchWithSession(url, options)
+  }
+}
+
 const EXAM_CONFIG = {
   maxWarnings: 15,
   networkAppWarningCooldownMs: 5000,
@@ -1014,7 +1092,15 @@ function playWarningBeep () {
 function renderExamHeader (student) {
   document.getElementById('examStudentName').innerText = student.name
   document.getElementById('examStudentEmail').innerText = student.email
-  document.getElementById('examTitle').innerText = student.exam
+
+  // Handle room-based sessions
+  if (student.roomCode) {
+    // For room-based sessions, show examName and roomCode
+    document.getElementById('examTitle').innerText = `${student.examName} (Room: ${student.roomCode})`
+  } else {
+    // Traditional sessions
+    document.getElementById('examTitle').innerText = student.exam
+  }
 }
 
 function updateSubmissionButton (isDisabled, label = 'Submit Exam') {
@@ -1396,7 +1482,7 @@ async function loadExam () {
   setExamStatus('Loading your exam...', 'info')
 
   try {
-    const response = await fetchWithSession(`${API_BASE_URL}/api/exam`)
+    const response = await fetchWithSessionOrRoom(`${API_BASE_URL}/api/exam`)
 
     if (!response) {
       markBackendDisconnected(
@@ -1418,7 +1504,21 @@ async function loadExam () {
     }
 
     currentAttempt = data.attempt
-    renderExamHeader(data.student)
+
+    // Render header with room info or student info
+    if (await isRoomBasedSession()) {
+      const roomData = await getRoomEnrollment();
+      renderExamHeader({
+        name: roomData.studentName,
+        email: roomData.studentEmail,
+        examName: roomData.examName,
+        courseName: roomData.courseName,
+        roomCode: roomData.roomCode
+      })
+    } else {
+      renderExamHeader(data.student)
+    }
+
     updateViolationCount(data.attempt?.violationCount)
     renderWarningHistory(data.attempt?.violations)
 
@@ -1465,7 +1565,7 @@ async function submitExam (reason = 'manual_submit') {
   })
 
   try {
-    const response = await fetchWithSession(`${API_BASE_URL}/api/exam/submit`, {
+    const response = await fetchWithSessionOrRoom(`${API_BASE_URL}/api/exam/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -2210,6 +2310,21 @@ window.addEventListener('beforeunload', () => {
 })
 
 window.addEventListener('load', async () => {
+  // Check for valid session (either auth-based or room-based)
+  const hasAuthSession = getStoredSession()
+  const hasRoomEnrollment = await getRoomEnrollment()
+
+  if (!hasAuthSession && !hasRoomEnrollment) {
+    // No valid session - redirect to join page
+    window.location = 'join.html'
+    return
+  }
+
+  // Initialize room enrollment data if present
+  if (hasRoomEnrollment) {
+    roomEnrollment = hasRoomEnrollment
+  }
+
   startLiveUiRefreshLoop()
   initializeProctorDock()
 

@@ -13,7 +13,9 @@ import {
   RoomCollisionError,
   CapacityExceededError,
   InvalidStateTransitionError,
-  NotRoomOwnerError
+  NotRoomOwnerError,
+  DuplicateEnrollmentError,
+  RoomFullError
 } from '../room.service';
 
 // Mock Pool
@@ -371,6 +373,202 @@ describe('ProctoringRoomService', () => {
 
       await expect(roomService.closeRoom(1, 1))
         .rejects.toThrow(InvalidStateTransitionError);
+    });
+  });
+
+  // ==========================================================================
+  // getOrCreateUserByEmail() Tests
+  // ==========================================================================
+
+  describe('getOrCreateUserByEmail()', () => {
+    it('should return existing user if email exists', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [{ id: 123 }] });
+
+      const result = await roomService.getOrCreateUserByEmail('test@example.com', 'Test User');
+
+      expect(result.id).toBe(123);
+      expect(mockFn).toHaveBeenCalledWith('SELECT id FROM users WHERE email = $1', ['test@example.com']);
+    });
+
+    it('should create new user with sanitized data if email does not exist', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      // First call: user not found
+      mockFn.mockResolvedValueOnce({ rows: [] });
+      // Second call: INSERT returns new user
+      mockFn.mockResolvedValueOnce({ rows: [{ id: 456 }] });
+
+      const result = await roomService.getOrCreateUserByEmail('newuser@example.com', 'New User');
+
+      expect(result.id).toBe(456);
+      expect(mockFn).toHaveBeenCalledTimes(2);
+    });
+
+    it('should sanitize username by removing special characters', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [] });
+      mockFn.mockResolvedValueOnce({ rows: [{ id: 789 }] });
+
+      await roomService.getOrCreateUserByEmail('user<script>@example.com', 'Test<script>');
+
+      // Verify the INSERT was called with sanitized data
+      const insertCall = mockFn.mock.calls[1];
+      expect(insertCall[1][1]).toMatch(/^[a-zA-Z0-9_-]+$/); // username should be alphanumeric
+    });
+
+    it('should handle race condition with UPSERT', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      // UPSERT returns nothing (conflict)
+      mockFn.mockResolvedValueOnce({ rows: [] });
+      // Fetch existing user
+      mockFn.mockResolvedValueOnce({ rows: [{ id: 999 }] });
+
+      const result = await roomService.getOrCreateUserByEmail('racing@example.com', 'Racer');
+
+      expect(result.id).toBe(999);
+      expect(mockFn).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ==========================================================================
+  // getStudentCount() Tests
+  // ==========================================================================
+
+  describe('getStudentCount()', () => {
+    it('should return current student count for room', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [{ count: '5' }] });
+
+      const count = await roomService.getStudentCount(1);
+
+      expect(count).toBe(5);
+      expect(mockFn).toHaveBeenCalledWith(
+        'SELECT COUNT(*) as count FROM proctoring_room_students WHERE room_id = $1',
+        [1]
+      );
+    });
+
+    it('should return 0 for empty room', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [{ count: '0' }] });
+
+      const count = await roomService.getStudentCount(1);
+
+      expect(count).toBe(0);
+    });
+  });
+
+  // ==========================================================================
+  // enrollStudent() Tests
+  // ==========================================================================
+
+  describe('enrollStudent()', () => {
+    it('should enroll student when capacity is available', async () => {
+      const mockRoom = {
+        id: 1,
+        room_code: 'ABC12345',
+        capacity: 15
+      };
+
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [mockRoom] }); // Get room
+      mockFn.mockResolvedValueOnce({ rows: [{ id: 777 }] }); // INSERT succeeds
+
+      const result = await roomService.enrollStudent({
+        roomId: 1,
+        userId: 100,
+        studentName: 'John Doe',
+        studentEmail: 'john@example.com'
+      });
+
+      expect(result.id).toBe(777);
+    });
+
+    it('should throw RoomNotFoundError when room does not exist', async () => {
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [] }); // Room not found
+
+      await expect(roomService.enrollStudent({
+        roomId: 999,
+        userId: 100,
+        studentName: 'Test',
+        studentEmail: 'test@example.com'
+      })).rejects.toThrow(RoomNotFoundError);
+    });
+
+    it('should throw RoomFullError when capacity is exceeded', async () => {
+      const mockRoom = {
+        id: 1,
+        room_code: 'FULL123',
+        capacity: 15
+      };
+
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [mockRoom] }); // Get room
+      mockFn.mockResolvedValueOnce({ rows: [{ count: '10' }] }); // Current count
+      mockFn.mockResolvedValueOnce({ rows: [] }); // INSERT fails (capacity check)
+
+      await expect(roomService.enrollStudent({
+        roomId: 1,
+        userId: 100,
+        studentName: 'Test',
+        studentEmail: 'test@example.com'
+      })).rejects.toThrow(RoomFullError);
+    });
+
+    it('should throw DuplicateEnrollmentError on duplicate key', async () => {
+      const mockRoom = {
+        id: 1,
+        room_code: 'DUP12345',
+        capacity: 15
+      };
+
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [mockRoom] }); // Get room
+      // INSERT throws duplicate key error
+      mockFn.mockRejectedValueOnce({ code: '23505', detail: 'Key (email) already exists' });
+
+      await expect(roomService.enrollStudent({
+        roomId: 1,
+        userId: 100,
+        studentName: 'Duplicate',
+        studentEmail: 'duplicate@example.com'
+      })).rejects.toThrow(DuplicateEnrollmentError);
+    });
+
+    it('should sanitize student name and email before enrollment', async () => {
+      const mockRoom = {
+        id: 1,
+        room_code: 'SANITIZE',
+        capacity: 15
+      };
+
+      const mockFn = jest.fn() as any;
+      mockPool.query = mockFn;
+      mockFn.mockResolvedValueOnce({ rows: [mockRoom] });
+      mockFn.mockResolvedValueOnce({ rows: [{ id: 888 }] });
+
+      await roomService.enrollStudent({
+        roomId: 1,
+        userId: 100,
+        studentName: '<script>alert("xss")</script>',
+        studentEmail: 'xss@example.com'
+      });
+
+      // Verify sanitized data was passed to INSERT
+      const insertCall = mockFn.mock.calls[1];
+      expect(insertCall[1][1]).not.toContain('<script>');
+      expect(insertCall[1][2]).not.toContain('<script>');
     });
   });
 });

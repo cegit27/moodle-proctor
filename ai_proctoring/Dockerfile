@@ -19,6 +19,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender-dev \
     libgl1 \
+    libglib2.0-0 \
+    libglib2.0-dev \
+    libgbm1 \
+    libegl1 \
+    libgles2 \
     wget \
     && rm -rf /var/lib/apt/lists/*
 

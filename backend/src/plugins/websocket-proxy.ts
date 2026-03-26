@@ -197,7 +197,7 @@ export default fp<WebSocketProxyOptions>(async (fastify: FastifyInstance, option
       let session = handler.getSession(finalSessionId);
 
       if (!session) {
-        session = handler.createSession({
+        session = await handler.createSession({
           attemptId: attemptIdNum,
           userId: user.id,
           examId: attempt.exam_id,

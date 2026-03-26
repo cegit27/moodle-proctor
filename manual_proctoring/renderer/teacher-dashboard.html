@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Teacher Dashboard - Room Management</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .dashboard-header {
+      margin-bottom: 40px;
+    }
+
+    .dashboard-header h1 {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+
+    .dashboard-header p {
+      color: #667085;
+      font-size: 16px;
+    }
+
+    .create-room-section {
+      background: white;
+      border: 1px solid #d0d5dd;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .create-room-section h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 20px;
+    }
+
+    .create-room-form {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+    }
+
+    .form-group {
+      flex: 1;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #344054;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: #175cd3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #0f3d91;
+    }
+
+    .room-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .room-card {
+      background: white;
+      border: 1px solid #d0d5dd;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .room-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 16px;
+    }
+
+    .room-code {
+      font-size: 24px;
+      font-weight: 800;
+      color: #175cd3;
+      letter-spacing: 2px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .room-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #ecfdf3;
+      color: #027a48;
+    }
+
+    .room-info {
+      margin: 16px 0;
+    }
+
+    .room-info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f2f4f7;
+    }
+
+    .room-info-row:last-child {
+      border-bottom: none;
+    }
+
+    .room-info-label {
+      color: #667085;
+      font-size: 14px;
+    }
+
+    .room-info-value {
+      font-weight: 600;
+      color: #101828;
+      font-size: 14px;
+    }
+
+    .student-list {
+      margin-top: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .student-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f2f4f7;
+      font-size: 14px;
+    }
+
+    .student-item:last-child {
+      border-bottom: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: #667085;
+      font-size: 14px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #667085;
+    }
+
+    .success-message {
+      background: #ecfdf3;
+      border: 1px solid #abefc6;
+      color: #027a48;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+
+    .copy-button {
+      background: #f2f4f7;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+
+    .copy-button:hover {
+      background: #e4e7ec;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="dashboard-header">
+      <h1>Teacher Dashboard</h1>
+      <p>Manage exam rooms and monitor student enrollments</p>
+    </div>
+
+    <div id="successMessage" class="success-message"></div>
+
+    <div class="create-room-section">
+      <h2>Create New Room</h2>
+      <form class="create-room-form" id="createRoomForm">
+        <div class="form-group">
+          <label for="examName">Exam Name</label>
+          <input type="text" id="examName" placeholder="e.g., Midterm Mathematics" required>
+        </div>
+        <div class="form-group">
+          <label for="courseName">Course</label>
+          <input type="text" id="courseName" placeholder="e.g., MATH 101" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Create Room</button>
+      </form>
+    </div>
+
+    <div id="roomsContainer">
+      <div class="loading">Loading rooms...</div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000';
+
+    // Load rooms on page load
+    window.addEventListener('load', () => {
+      loadRooms();
+    });
+
+    // Create room form handler
+    document.getElementById('createRoomForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const examName = document.getElementById('examName').value;
+      const courseName = document.getElementById('courseName').value;
+
+      try {
+        const response = await fetch(`${API_BASE}/api/room/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ examId: 1 })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showSuccess(`Room created! Invite code: ${data.data.roomCode}`);
+          document.getElementById('createRoomForm').reset();
+          loadRooms();
+        } else {
+          alert('Failed to create room: ' + data.error);
+        }
+      } catch (error) {
+        console.error('Error creating room:', error);
+        alert('Failed to create room. Is the backend running?');
+      }
+    });
+
+    async function loadRooms() {
+      // For demo, we'll show the pre-created room
+      try {
+        const response = await fetch(`${API_BASE}/api/room/MTH101AB`);
+        const roomData = await response.json();
+
+        if (roomData.success) {
+          // Get students
+          const studentsResponse = await fetch(`${API_BASE}/api/room/MTH101AB/students`);
+          const studentsData = await studentsResponse.json();
+
+          displayRoom({
+            ...roomData.data,
+            roomCode: 'MTH101AB',
+            students: studentsData.data.students || [],
+            studentCount: studentsData.data.studentCount || 0,
+            capacity: 15
+          });
+        }
+      } catch (error) {
+        console.error('Error loading rooms:', error);
+        document.getElementById('roomsContainer').innerHTML =
+          '<div class="empty-state">Unable to load rooms. Is the backend running?</div>';
+      }
+    }
+
+    function displayRoom(room) {
+      const container = document.getElementById('roomsContainer');
+
+      container.innerHTML = `
+        <div class="room-cards">
+          <div class="room-card">
+            <div class="room-card-header">
+              <div>
+                <div class="room-code">${room.roomCode}</div>
+                <div style="color: #667085; font-size: 14px; margin-top: 4px;">
+                  ${room.examName} - ${room.courseName}
+                </div>
+              </div>
+              <span class="room-status">Active</span>
+            </div>
+
+            <div class="room-info">
+              <div class="room-info-row">
+                <span class="room-info-label">Capacity</span>
+                <span class="room-info-value">${room.studentCount} / ${room.capacity}</span>
+              </div>
+            </div>
+
+            <div class="student-list">
+              ${room.students.length > 0 ? `
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">
+                  Enrolled Students (${room.studentCount})
+                </div>
+                ${room.students.map(student => `
+                  <div class="student-item">
+                    <span>${student.name}</span>
+                    <span style="color: #667085;">${student.email}</span>
+                  </div>
+                `).join('')}
+              ` : '<div class="empty-state">No students enrolled yet</div>'}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showSuccess(message) {
+      const el = document.getElementById('successMessage');
+      el.textContent = message;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 5000);
+    }
+
+    // Auto-refresh every 5 seconds
+    setInterval(loadRooms, 5000);
+  </script>
+</body>
+</html>

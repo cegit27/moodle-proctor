@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Join Exam Room</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.join-info {
+  margin: 20px 0;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #475467;
+  text-align: left;
+}
+
+.join-info strong {
+  color: #101828;
+  display: block;
+  margin-bottom: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Join Exam Room</h2>
+
+<p class="join-info">
+  <strong>Enter your details to join the proctoring session</strong>
+  Please provide your name and email as registered with your institution.
+</p>
+
+<input id="studentName" type="text" placeholder="Your Full Name" autocomplete="name">
+
+<input id="studentEmail" type="email" placeholder="Your Email Address" autocomplete="email">
+
+<input id="roomCode" type="text" placeholder="Invite Code (e.g., Xy7Ab9Pq)" maxlength="8" style="text-transform: uppercase; font-family: 'Courier New', monospace; letter-spacing: 2px;">
+
+<p id="joinMessage" class="status-message" hidden></p>
+
+<button id="joinButton" onclick="joinRoom()">Join Room</button>
+
+</div>
+
+<script src="js/join.js"></script>
+
+</body>
+</html>
