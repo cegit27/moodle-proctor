@@ -6,9 +6,14 @@
 # ----------------------------------------------------------------------------
 # Build stage
 # ----------------------------------------------------------------------------
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
+
+# mediasoup may need to build worker binaries in-container when prebuilt
+# artifacts are not compatible with host kernel/glibc.
+RUN apk add --no-cache python3 py3-pip make g++ && \
+    ln -sf /usr/bin/python3 /usr/bin/python
 
 # Copy package files
 COPY package*.json ./
@@ -26,7 +31,7 @@ RUN npm run build
 # ----------------------------------------------------------------------------
 # Production stage
 # ----------------------------------------------------------------------------
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
