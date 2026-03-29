@@ -1,87 +1,49 @@
-// ============================================================================
 // Violation Module - Schema & Types
-// ============================================================================
-
-// ============================================================================
-// Request Types
-// ============================================================================
 
 export interface ReportViolationRequest {
   attemptId: number;
   violationType: string;
   severity?: 'info' | 'warning';
   detail?: string;
-  metadata?: Record<string, unknown>;
-  frameSnapshot?: string; // Base64 encoded image
+  timestamp?: number;
+  frameSnapshot?: string; // base64 JPEG
+  metadata?: Record<string, any>;
   integrityHash?: string;
   aiSignature?: string;
   clientIp?: string;
   sessionId?: string;
-  timestamp?: number; // Unix timestamp in milliseconds
 }
 
-// ============================================================================
-// Response Types
-// ============================================================================
-
-export interface Violation {
-  id: number;
-  attemptId: number;
-  violationType: string;
-  severity: 'info' | 'warning';
-  detail: string | null;
-  occurredAt: Date;
-  frameSnapshotPath: string | null;
-  metadata: Record<string, unknown> | null;
-  integrityHash: string;
-  aiSignature: string | null;
-  clientIp: string | null;
-  sessionId: string | null;
-}
-
-export interface ViolationResponse {
+export interface ViolationReportResponse {
   success: true;
   data: {
-    violation: Violation;
-    violationCount: number;
+    violationId: number;
+    newViolationCount: number;
+    maxWarnings: number;
+    thresholdReached: boolean;
     shouldAutoSubmit: boolean;
   };
 }
 
-export interface ViolationsListResponse {
+export interface GetViolationsResponse {
   success: true;
   data: {
-    violations: Violation[];
-    totalCount: number;
-    warningCount: number;
-    infoCount: number;
+    violations: any[]; // DB rows
+    count: number;
   };
 }
 
-export interface ViolationCheckResponse {
+export interface ViolationCountCheckResponse {
   success: true;
   data: {
     count: number;
-    threshold: number;
-    shouldAutoSubmit: boolean;
+    maxWarnings: number;
+    thresholdReached: boolean;
   };
 }
 
-// ============================================================================
-// Database Row Types
-// ============================================================================
-
-export interface ViolationRow {
-  id: number;
-  attempt_id: number;
-  violation_type: string;
-  severity: string;
-  detail: string;
-  occurred_at: Date;
-  frame_snapshot_path: string;
-  metadata: Record<string, unknown>;
-  integrity_hash: string;
-  ai_signature: string;
-  client_ip: string;
-  session_id: string;
+// Extend global types
+declare global {
+  type ViolationSeverity = 'info' | 'warning';
 }
+

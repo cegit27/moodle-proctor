@@ -28,10 +28,7 @@ export default fp(async (fastify: FastifyInstance) => {
   fastify.post('/api/exam/violations', {
     onRequest: [authMiddleware], // TODO: Add role check middleware and rate limiting
     config: {
-      rateLimit: {
-        limit: 100, // 100 violations per minute per user
-        window: 60000
-      }
+      rateLimit: true
     },
     schema: {
       body: {
