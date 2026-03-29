@@ -72,19 +72,19 @@ The legacy Express backend under `manual_proctoring/backend/` is archived and sh
 
 ## 🚧 Pending Implementation
 
-### Priority 1: Core Functionality
-1. **Student Module** (`modules/student/`)
+### Priority 1: Core Functionality ✅ COMPLETE
+1. **Student Module** (`modules/student/`) ✅
    - GET /api/student - Student profile + attempt status
    - GET /api/session - Session validation
    - GET /files/:filename - Static file serving
 
-2. **Exam Module** (`modules/exam/`)
+2. **Exam Module** (`modules/exam/`) ✅
    - GET /api/exam - Exam details
    - POST /api/exam/start - Start/resume exam
    - POST /api/exam/submit - Submit exam
    - GET /api/questions - Question summary
 
-3. **Violation Module** (`modules/violation/`)
+3. **Violation Module** (`modules/violation/`) ✅
    - POST /api/exam/violations - Report violation
    - Store in PostgreSQL
    - Auto-submit at 15 warnings
@@ -251,9 +251,9 @@ backend/
 │   │   │   ├── moodle.service.ts
 │   │   │   ├── jwt.service.ts
 │   │   │   └── auth.routes.ts
-│   │   ├── student/                # 🚧 TODO
-│   │   ├── exam/                   # 🚧 TODO
-│   │   ├── violation/              # 🚧 TODO
+│   │   ├── student/                # ✅ COMPLETE
+│   │   ├── exam/                   # ✅ COMPLETE
+│   │   ├── violation/              # ✅ COMPLETE
 │   │   ├── teacher/                # 🚧 TODO
 │   │   └── security/               # 🚧 TODO
 │   ├── middleware/
@@ -312,24 +312,24 @@ POST   /api/auth/refresh        # Refresh token
 GET    /health                   # Health status
 ```
 
-### Student (TODO 🚧)
+### Student ✅
 ```
-GET    /api/student             # Student profile + attempt
-GET    /api/session             # Session validation
-GET    /files/:filename         # Static files
-```
-
-### Exam (TODO 🚧)
-```
-GET    /api/exam                # Exam details
-POST   /api/exam/start          # Start exam
-POST   /api/exam/submit         # Submit exam
-GET    /api/questions           # Question summary
+GET /api/student
+GET /api/session
+GET /files/:filename
 ```
 
-### Violations (TODO 🚧)
+### Exam ✅
 ```
-POST   /api/exam/violations     # Report violation
+GET /api/exam
+POST /api/exam/start
+POST /api/exam/submit
+GET /api/exam/:id/questions
+```
+
+### Violations ✅
+```
+POST /api/exam/violations
 ```
 
 ### Teacher Dashboard (TODO 🚧)
