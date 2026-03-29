@@ -1,0 +1,1 @@
+Status: DB schema verified (migrations 001-006 exist). Violation service & schemas complete (auto-submit logic at max_warnings || 15). Seed script created. Student/exam services functional. Next: update TODO + test endpoints.

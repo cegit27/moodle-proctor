@@ -1,145 +1,128 @@
-// ============================================================================
-// Violation Module - Service Layer
-// Handle violation recording and auto-submit logic
-// ============================================================================
-
 import { Pool } from 'pg';
-import { createExamService } from '../exam/exam.service';
-import { SignatureService } from '../security/signature.service';
+import type { PoolClient } from 'pg';
+import logger from '../../config/logger';
 import type {
-  Violation,
-  ViolationResponse,
-  ViolationsListResponse,
-  ViolationCheckResponse,
-  ViolationRow,
-  ReportViolationRequest
+  ReportViolationRequest,
+  ViolationReportResponse,
+  GetViolationsResponse,
+  ViolationCountCheckResponse
 } from './violation.schema';
+import type { User } from '../../types';
+
+export enum ViolationSeverity {
+  INFO = 'info',
+  WARNING = 'warning',
+}
 
 export class ViolationService {
-  constructor(private pg: Pool) {
-    this.examService = createExamService(pg);
-  }
+  constructor(private pg: Pool) {}
 
-  private examService: ReturnType<typeof createExamService>;
-
-  /**
-   * Record a new violation
-   */
   async recordViolation(
-    request: ReportViolationRequest,
+    violation: ReportViolationRequest,
     userId: number,
-    signatureService?: SignatureService
-  ): Promise<ViolationResponse> {
-    const {
-      attemptId,
-      violationType,
-      severity = 'warning',
-      detail,
-      metadata = {},
-      // frameSnapshot, // Would be saved to storage
-      integrityHash,
-      aiSignature,
-      clientIp,
-      sessionId,
-      timestamp
-    } = request;
-
-    // Verify attempt belongs to user
-    const attemptResult = await this.pg.query<{ id: number; user_id: number; status: string }>(
-      'SELECT id, user_id, status FROM exam_attempts WHERE id = $1',
-      [attemptId]
-    );
-
-    if (attemptResult.rows.length === 0) {
-      throw new Error('Attempt not found');
-    }
-
-    const attempt = attemptResult.rows[0];
-
-    if (attempt.user_id !== userId) {
-      throw new Error('Access denied');
-    }
-
-    if (attempt.status !== 'in_progress') {
-      throw new Error('Cannot record violation for inactive attempt');
-    }
-
-    // Generate integrity hash if not provided
-    const finalIntegrityHash = integrityHash ||
-      (signatureService ? signatureService.createIntegrityHash({
-        attemptId,
-        violationType,
-        severity,
-        timestamp: timestamp || Date.now()
-      }) : '');
-
-    // Calculate occurred_at from timestamp or use now
-    const occurredAt = timestamp ? new Date(timestamp) : new Date();
-
-    // Insert violation
+    signatureService: any
+  ): Promise<ViolationReportResponse> {
     const client = await this.pg.connect();
 
     try {
       await client.query('BEGIN');
 
-      const result = await client.query<ViolationRow>(
-        `INSERT INTO violations
-        (attempt_id, violation_type, severity, detail, occurred_at,
-         frame_snapshot_path, metadata, integrity_hash, ai_signature, client_ip, session_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        RETURNING *`,
+      // Verify attempt belongs to user
+      const attemptCheck = await client.query(
+        'SELECT id, exam_id, violation_count, status FROM exam_attempts WHERE id = $1 AND user_id = $2',
+        [violation.attemptId, userId]
+      );
+
+      if (attemptCheck.rows.length === 0) {
+        throw new Error('Attempt not found');
+      }
+
+      const attempt = attemptCheck.rows[0];
+      if (attempt.status !== 'in_progress') {
+        throw new Error('Cannot record violation for non-active attempt');
+      }
+
+      // Verify signature
+      const isValid = signatureService.verifyIntegrityHash(violation, violation.integrityHash || '');
+      if (!isValid) {
+        throw new Error('Invalid violation integrity hash');
+      }
+
+      // Insert violation
+      const violationResult = await client.query(
+        `INSERT INTO violations (
+          attempt_id, violation_type, severity, detail, occurred_at,
+          frame_snapshot_path, metadata, integrity_hash, ai_signature, 
+          client_ip, session_id
+        ) VALUES ($1, $2, $3, $4, to_timestamp($5/1000), $6, $7, $8, $9, $10, $11)
+        RETURNING id`,
         [
-          attemptId,
-          violationType,
-          severity,
-          detail || null,
-          occurredAt,
-          null, // frame_snapshot_path (would store uploaded image path)
-          JSON.stringify(metadata),
-          finalIntegrityHash,
-          aiSignature || null,
-          clientIp || null,
-          sessionId || null
+          violation.attemptId,
+          violation.violationType,
+          violation.severity || 'warning',
+          violation.detail || null,
+          violation.timestamp || Date.now(),
+          violation.frameSnapshot || null,
+          violation.metadata || null,
+          violation.integrityHash || null,
+          violation.aiSignature || null,
+          violation.clientIp || null,
+          violation.sessionId || null
         ]
       );
 
-      const violation = this.mapViolationRow(result.rows[0]);
+      const violationId = violationResult.rows[0].id;
 
-      // Update attempt violation count
+      // Increment violation count
       await client.query(
         'UPDATE exam_attempts SET violation_count = violation_count + 1 WHERE id = $1',
-        [attemptId]
+        [violation.attemptId]
       );
 
-      // Get updated violation count
-      const countResult = await client.query<{ count: string; max_warnings: number }>(
-        `SELECT ea.violation_count, e.max_warnings
-        FROM exam_attempts ea
-        JOIN exams e ON ea.exam_id = e.id
-        WHERE ea.id = $1`,
-        [attemptId]
+      // Check if warning threshold reached (default 15)
+      const updatedAttempt = await client.query(
+        'SELECT violation_count, exam_id FROM exam_attempts WHERE id = $1',
+        [violation.attemptId]
       );
 
-      const { count, max_warnings } = countResult.rows[0];
-      const violationCount = parseInt(count, 10);
-      const threshold = max_warnings;
-      const shouldAutoSubmit = violationCount >= threshold;
+      const newCount = updatedAttempt.rows[0].violation_count;
+      const examId = updatedAttempt.rows[0].exam_id;
+
+      let shouldAutoSubmit = false;
+      const maxWarningsResult = await client.query(
+        'SELECT max_warnings FROM exams WHERE id = $1',
+        [examId]
+      );
+
+      const maxWarnings = maxWarningsResult.rows[0]?.max_warnings || 15;
+
+      if (newCount >= maxWarnings) {
+        logger.warn(`Auto-submit triggered for attempt ${violation.attemptId}: ${newCount}/${maxWarnings} violations`);
+        
+        // Auto-submit the exam
+        await client.query(
+          `UPDATE exam_attempts 
+           SET status = 'submitted', 
+               submitted_at = NOW(),
+               submission_reason = 'warning_limit_reached'
+           WHERE id = $1`,
+          [violation.attemptId]
+        );
+
+        shouldAutoSubmit = true;
+      }
 
       await client.query('COMMIT');
 
-      // Auto-submit if threshold reached
-      if (shouldAutoSubmit) {
-        // Trigger auto-submit in background
-        this.examService.autoSubmitExam(attemptId).catch(error => {
-          console.error(`Failed to auto-submit attempt ${attemptId}:`, error);
-        });
-      }
+      logger.info(`Violation recorded: attempt=${violation.attemptId}, type=${violation.violationType}, count=${newCount}/${maxWarnings}`);
 
       return {
         success: true,
         data: {
-          violation,
-          violationCount,
+          violationId,
+          newViolationCount: newCount,
+          maxWarnings,
+          thresholdReached: newCount >= maxWarnings,
           shouldAutoSubmit
         }
       };
@@ -151,115 +134,52 @@ export class ViolationService {
     }
   }
 
-  /**
-   * Get violations for an attempt
-   */
-  async getViolations(attemptId: number, userId: number): Promise<ViolationsListResponse> {
-    // Verify access
-    const attemptResult = await this.pg.query<{ id: number; user_id: number }>(
-      'SELECT id, user_id FROM exam_attempts WHERE id = $1',
-      [attemptId]
+  async getViolations(attemptId: number, userId: number): Promise<GetViolationsResponse> {
+    const result = await this.pg.query(
+      `SELECT v.*, u.username 
+       FROM violations v 
+       JOIN exam_attempts ea ON v.attempt_id = ea.id
+       JOIN users u ON ea.user_id = u.id
+       WHERE ea.id = $1 AND ea.user_id = $2
+       ORDER BY v.occurred_at DESC`,
+      [attemptId, userId]
     );
-
-    if (attemptResult.rows.length === 0) {
-      throw new Error('Attempt not found');
-    }
-
-    const attempt = attemptResult.rows[0];
-
-    // Check if user owns this attempt or is a teacher
-    // @ts-ignore - we'd check user role here
-    if (attempt.user_id !== userId) {
-      // For now, just check ownership. In production, check if user is teacher
-      throw new Error('Access denied');
-    }
-
-    const result = await this.pg.query<ViolationRow>(
-      `SELECT * FROM violations
-      WHERE attempt_id = $1
-      ORDER BY occurred_at DESC`,
-      [attemptId]
-    );
-
-    const violations = result.rows.map(this.mapViolationRow);
-
-    const warningCount = violations.filter(v => v.severity === 'warning').length;
-    const infoCount = violations.filter(v => v.severity === 'info').length;
 
     return {
       success: true,
       data: {
-        violations,
-        totalCount: violations.length,
-        warningCount,
-        infoCount
+        violations: result.rows,
+        count: result.rowCount || 0
       }
     };
   }
 
-  /**
-   * Check violation count for an attempt
-   */
-  async checkViolationCount(attemptId: number): Promise<ViolationCheckResponse> {
-    const result = await this.pg.query<{ count: string; max_warnings: number }>(
-      `SELECT COUNT(*) as count, e.max_warnings
-      FROM violations v
-      JOIN exam_attempts ea ON v.attempt_id = ea.id
-      JOIN exams e ON ea.exam_id = e.id
-      WHERE ea.id = $1
-      GROUP BY e.max_warnings`,
+  async checkViolationCount(attemptId: number): Promise<ViolationCountCheckResponse> {
+    const result = await this.pg.query(
+      `SELECT ea.violation_count, e.max_warnings
+       FROM exam_attempts ea
+       JOIN exams e ON ea.exam_id = e.id
+       WHERE ea.id = $1`,
       [attemptId]
     );
 
     if (result.rows.length === 0) {
-      return {
-        success: true,
-        data: {
-          count: 0,
-          threshold: 15, // Default
-          shouldAutoSubmit: false
-        }
-      };
+      throw new Error('Attempt not found');
     }
 
-    const { count, max_warnings } = result.rows[0];
-    const violationCount = parseInt(count, 10);
-
+    const { violation_count, max_warnings } = result.rows[0];
     return {
       success: true,
       data: {
-        count: violationCount,
-        threshold: max_warnings,
-        shouldAutoSubmit: violationCount >= max_warnings
+        count: violation_count,
+        maxWarnings: max_warnings || 15,
+        thresholdReached: violation_count >= (max_warnings || 15)
       }
     };
   }
-
-  /**
-   * Map database row to Violation
-   */
-  private mapViolationRow(row: ViolationRow): Violation {
-    return {
-      id: row.id,
-      attemptId: row.attempt_id,
-      violationType: row.violation_type,
-      severity: row.severity as 'info' | 'warning',
-      detail: row.detail,
-      occurredAt: row.occurred_at,
-      frameSnapshotPath: row.frame_snapshot_path,
-      metadata: row.metadata,
-      integrityHash: row.integrity_hash,
-      aiSignature: row.ai_signature,
-      clientIp: row.client_ip,
-      sessionId: row.session_id
-    };
-  }
 }
 
-// ============================================================================
-// Factory
-// ============================================================================
-
-export function createViolationService(pg: Pool): ViolationService {
+export function createViolationService(pg: Pool) {
   return new ViolationService(pg);
 }
+
