@@ -772,6 +772,54 @@ Authorization: Bearer YOUR_TOKEN_HERE
 }
 ```
 
+### Send Teacher Alert
+
+Send a real-time alert from a teacher to a student currently in an exam attempt.
+
+```http
+POST /api/teacher/alerts
+Authorization: Bearer YOUR_TOKEN_HERE
+Content-Type: application/json
+```
+
+**Body:**
+- `attemptId` (number, required): The student attempt ID to target
+- `message` (string, required): The alert text to deliver
+- `severity` (string, required): `info` | `warning` | `critical`
+
+```json
+{
+  "attemptId": 123,
+  "message": "Please focus on the exam window",
+  "severity": "warning"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "alertId": "alert_1680000000000_abcd123",
+  "message": "Alert sent successfully by Teacher Name"
+}
+```
+
+**Response (404 Not Found):**
+```json
+{
+  "success": false,
+  "error": "Student is not currently connected"
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Missing required fields: attemptId, message, severity"
+}
+```
+
 ### Generate Reports
 
 Generate violation reports.
@@ -954,6 +1002,19 @@ ws://localhost:3001/ws/proctor?token=YOUR_TOKEN_HERE
 {
   "type": "status",
   "status": "ready",
+  "timestamp": 1705300800000
+}
+```
+
+**Teacher Alert Message:**
+```json
+{
+  "type": "teacher_alert",
+  "alertId": "alert_1705300800000_ab12cd",
+  "message": "Please stay focused, you are drifting off.",
+  "severity": "warning",
+  "teacherId": 5,
+  "teacherName": "Dr. Smith",
   "timestamp": 1705300800000
 }
 ```

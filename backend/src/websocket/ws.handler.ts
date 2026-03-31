@@ -307,6 +307,29 @@ export class WSHandler extends EventEmitter {
   }
 
   /**
+   * Send teacher alert to a specific student
+   */
+  sendTeacherAlert(attemptId: number, alert: import('./ws.types').TeacherAlertMessage): boolean {
+    const session = this.getSessionByAttempt(attemptId);
+
+    if (!session) {
+      logger.warn(`No active session found for attempt ${attemptId} when sending teacher alert`);
+      return false;
+    }
+
+    const success = this.sendToClient(session.sessionId, alert);
+
+    if (success) {
+      logger.info(`Teacher alert sent to student for attempt ${attemptId}: ${alert.message}`);
+      this.emit('teacher:alert:sent', { session, alert });
+    } else {
+      logger.error(`Failed to send teacher alert to student for attempt ${attemptId}`);
+    }
+
+    return success;
+  }
+
+  /**
    * Get session
    */
   getSession(sessionId: string): ProctoringSession | undefined {

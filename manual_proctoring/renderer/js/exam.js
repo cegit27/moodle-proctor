@@ -1237,6 +1237,7 @@ function releaseExamResources () {
     window.electronAPI.stopAIProctoringService()
   }
 
+  stopBackendWebSocketConnection()
   clearReconnectCheck()
   resetLiveMonitoringState()
 }
@@ -1475,6 +1476,8 @@ async function startExamAttempt () {
     window.electronAPI.startExamMonitoring()
   }
 
+  startBackendWebSocketConnection()
+
   return true
 }
 
@@ -1504,6 +1507,10 @@ async function loadExam () {
     }
 
     currentAttempt = data.attempt
+
+    if (currentAttempt?.status === 'in_progress') {
+      startBackendWebSocketConnection()
+    }
 
     // Render header with room info or student info
     if (await isRoomBasedSession()) {
@@ -2110,6 +2117,129 @@ function shouldLogBlockedProcess (processName) {
   return true
 }
 
+// ============================================================================
+// Backend WebSocket Connection for Teacher Alerts
+// ============================================================================
+
+let backendWs = null
+let backendWsReconnectTimeout = null
+
+function startBackendWebSocketConnection () {
+  if (!currentAttempt?.id) {
+    console.warn('[Backend WS] Cannot start connection, attempt not available')
+    return
+  }
+
+  if (backendWs && backendWs.readyState === WebSocket.OPEN) {
+    return // Already connected
+  }
+
+  const wsUrl = window.BACKEND_WS_URL || 'ws://localhost:3001/ws/proctor'
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken')
+
+  if (!token) {
+    console.warn('[Backend WS] No auth token available for teacher alert socket')
+    return
+  }
+
+  const attemptId = currentAttempt.id
+  const url = `${wsUrl}?attemptId=${encodeURIComponent(attemptId)}&token=${encodeURIComponent(token)}`
+  console.log('[Backend WS] Connecting to', url)
+
+  backendWs = new WebSocket(url)
+
+  backendWs.onopen = () => {
+    console.log('[Backend WS] Connection established')
+    if (backendWsReconnectTimeout) {
+      clearTimeout(backendWsReconnectTimeout)
+      backendWsReconnectTimeout = null
+    }
+  }
+
+  backendWs.onmessage = (event) => {
+    if (!examStarted || examSubmitted) {
+      return
+    }
+
+    let payload
+    try {
+      payload = JSON.parse(event.data)
+    } catch (err) {
+      console.warn('[Backend WS] Ignored malformed message:', event.data)
+      return
+    }
+
+    if (payload.type === 'teacher_alert') {
+      handleTeacherAlert(payload)
+    }
+  }
+
+  backendWs.onerror = (error) => {
+    console.error('[Backend WS] Error', error)
+  }
+
+  backendWs.onclose = (event) => {
+    console.warn('[Backend WS] Closed', event.code, event.reason)
+
+    if (!examSubmitted && examStarted) {
+      backendWsReconnectTimeout = setTimeout(() => {
+        startBackendWebSocketConnection()
+      }, 5000)
+    }
+  }
+}
+
+function stopBackendWebSocketConnection () {
+  if (backendWs) {
+    backendWs.close()
+    backendWs = null
+  }
+  if (backendWsReconnectTimeout) {
+    clearTimeout(backendWsReconnectTimeout)
+    backendWsReconnectTimeout = null
+  }
+}
+
+function handleTeacherAlert (alertMessage) {
+  const { alertId, message: alertText, severity, teacherId, teacherName, timestamp } = alertMessage
+
+  const uiSeverity = severity === 'critical' ? 'error' : severity === 'info' ? 'info' : 'warning'
+  const display = `Teacher alert from ${teacherName}: ${alertText}`
+
+  showViolationStatus({
+    type: 'teacher_alert',
+    detail: display,
+    severity: uiSeverity
+  })
+
+  reportViolation('teacher_alert', display, uiSeverity)
+
+  if (severity === 'critical' || severity === 'warning') {
+    playWarningBeep()
+  }
+
+  if (severity === 'critical') {
+    showCriticalAlertBanner(display)
+  }
+}
+
+function showCriticalAlertBanner (text) {
+  let banner = document.getElementById('critical-alert-banner')
+  if (!banner) {
+    banner = document.createElement('div')
+    banner.id = 'critical-alert-banner'
+    banner.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: #c82333; color: white; padding: 12px; text-align: center; font-weight: bold; z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.3);'
+    document.body.appendChild(banner)
+  }
+
+  banner.textContent = `URGENT: ${text}`
+
+  setTimeout(() => {
+    const target = document.getElementById('critical-alert-banner')
+    if (target) target.remove()
+  }, 10000)
+}
+
 function getBlockedShortcutMessage (event) {
   const key = String(event.key || '').toLowerCase()
   const usesPrimaryModifier = event.ctrlKey || event.metaKey
@@ -2347,4 +2477,7 @@ window.addEventListener('load', async () => {
   }
 
   await loadExam()
+
+  // Start backend WebSocket connection for teacher alerts
+  startBackendWebSocketConnection()
 })

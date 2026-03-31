@@ -83,6 +83,12 @@ export default fp<WebSocketProxyOptions>(async (fastify: FastifyInstance, option
     }
   });
 
+  // Teacher alert sent - forward to student
+  handler.on('teacher:alert:sent', ({ session, alert }: { session: any; alert: any }) => {
+    logger.info(`Teacher alert forwarded to student for session ${session.sessionId}: ${alert.message}`);
+    // The alert is already sent by the handler.sendTeacherAlert method
+  });
+
   // Client disconnected - close AI connection
   handler.on('client:disconnected', async ({ session }: { session: any }) => {
     try {

@@ -40,6 +40,19 @@ export interface GetStatsQuery {
   examId?: number;
 }
 
+export interface SendAlertRequest {
+  attemptId: number;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+}
+
+export interface SendAlertResponse {
+  success: boolean;
+  alertId?: string;
+  message?: string;
+  error?: string;
+}
+
 // ============================================================================
 // Response Types
 // ============================================================================

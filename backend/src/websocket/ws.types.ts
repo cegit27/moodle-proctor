@@ -57,7 +57,17 @@ export interface ErrorMessage {
   timestamp: number;
 }
 
-export type AIMessage = ViolationMessage | StatusMessage | ErrorMessage;
+export interface TeacherAlertMessage {
+  type: 'teacher_alert';
+  alertId: string;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+  teacherId: number;
+  teacherName: string;
+  timestamp: number;
+}
+
+export type AIMessage = ViolationMessage | StatusMessage | ErrorMessage | TeacherAlertMessage;
 
 // ============================================================================
 // WebSocket Connection State

@@ -18,7 +18,8 @@ import type {
   ListAttemptsQuery,
   ListStudentsQuery,
   ListReportsQuery,
-  GetStatsQuery
+  GetStatsQuery,
+  SendAlertResponse
 } from './teacher.schema';
 
 export class TeacherService {
@@ -653,6 +654,80 @@ export class TeacherService {
     return {
       success: true,
       data: stats
+    };
+  }
+
+  // ==========================================================================
+  // Alerts
+  // ==========================================================================
+
+  /**
+   * Send alert to a student
+   */
+  async sendAlert(attemptId: number, message: string, severity: 'info' | 'warning' | 'critical', teacherId: number): Promise<SendAlertResponse> {
+    // Validate attempt exists and is in progress
+    const attemptResult = await this.pg.query(
+      `SELECT ea.id, ea.status, ea.user_id, u.first_name, u.last_name
+       FROM exam_attempts ea
+       JOIN users u ON ea.user_id = u.id
+       WHERE ea.id = $1`,
+      [attemptId]
+    );
+
+    if (attemptResult.rows.length === 0) {
+      return {
+        success: false,
+        error: 'Attempt not found'
+      };
+    }
+
+    const attempt = attemptResult.rows[0];
+
+    if (attempt.status !== 'in_progress') {
+      return {
+        success: false,
+        error: 'Attempt is not currently in progress'
+      };
+    }
+
+    // Get teacher info
+    const teacherResult = await this.pg.query(
+      `SELECT first_name, last_name FROM users WHERE id = $1`,
+      [teacherId]
+    );
+
+    if (teacherResult.rows.length === 0) {
+      return {
+        success: false,
+        error: 'Teacher not found'
+      };
+    }
+
+    const teacher = teacherResult.rows[0];
+    const teacherName = `${teacher.first_name} ${teacher.last_name}`.trim();
+
+    // Generate alert ID
+    const alertId = `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Log alert in database (optional - for audit trail)
+    try {
+      await this.pg.query(
+        `INSERT INTO teacher_alerts (id, attempt_id, teacher_id, message, severity, sent_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [alertId, attemptId, teacherId, message, severity]
+      );
+    } catch (err) {
+      // If table doesn't exist, continue without logging
+      const dbError = err as Error
+      console.warn('Could not log alert to database:', dbError.message);
+    }
+
+    // Send via WebSocket handler (will be injected)
+    // This will be called from the route handler where we have access to the WS handler
+    return {
+      success: true,
+      alertId,
+      message: `Alert sent successfully by ${teacherName}`
     };
   }
 
