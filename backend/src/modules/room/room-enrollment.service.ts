@@ -208,6 +208,62 @@ export async function linkAttemptToEnrollment(
   )
 }
 
+export async function clearAttemptLinkFromEnrollment(
+  pg: Pool,
+  enrollmentId: number
+): Promise<void> {
+  await pg.query(
+    `UPDATE proctoring_room_students
+     SET attempt_id = NULL
+     WHERE id = $1`,
+    [enrollmentId]
+  )
+}
+
+export async function resolveRoomEnrollmentAttemptId(
+  pg: Pool,
+  params: {
+    enrollmentId: number
+    linkedAttemptId: number | null
+    userId: number
+    examId: number
+  }
+): Promise<number | null> {
+  const { enrollmentId, linkedAttemptId, userId, examId } = params
+
+  if (linkedAttemptId) {
+    const linkedAttemptResult = await pg.query<{ id: number; status: string }>(
+      `SELECT id, status
+       FROM exam_attempts
+       WHERE id = $1
+       AND user_id = $2
+       AND exam_id = $3
+       LIMIT 1`,
+      [linkedAttemptId, userId, examId]
+    )
+
+    if (linkedAttemptResult.rows[0]?.status === 'in_progress') {
+      return linkedAttemptId
+    }
+  }
+
+  const activeAttemptId = await getActiveAttemptIdForUserAndExam(pg, userId, examId)
+
+  if (activeAttemptId) {
+    if (activeAttemptId !== linkedAttemptId) {
+      await linkAttemptToEnrollment(pg, enrollmentId, activeAttemptId)
+    }
+
+    return activeAttemptId
+  }
+
+  if (linkedAttemptId) {
+    await clearAttemptLinkFromEnrollment(pg, enrollmentId)
+  }
+
+  return null
+}
+
 export async function getActiveAttemptIdForUserAndExam(
   pg: Pool,
   userId: number,

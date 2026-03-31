@@ -16,9 +16,9 @@ import {
   submitManualExamAttempt
 } from '../manual-proctoring/manual-proctoring.compat';
 import {
-  getActiveAttemptIdForUserAndExam,
   getCompatibilityAttemptSnapshot,
-  linkAttemptToEnrollment
+  linkAttemptToEnrollment,
+  resolveRoomEnrollmentAttemptId
 } from '../room/room-enrollment.service';
 
 // ============================================================================
@@ -149,9 +149,15 @@ export default fp(async (fastify: FastifyInstance) => {
 
       try {
         if (roomEnrollment) {
-          const existingAttemptId =
-            roomEnrollment.attemptId ||
-            await getActiveAttemptIdForUserAndExam(fastify.pg as any, userId, examId);
+          const existingAttemptId = await resolveRoomEnrollmentAttemptId(
+            fastify.pg as any,
+            {
+              enrollmentId: roomEnrollment.enrollmentId,
+              linkedAttemptId: roomEnrollment.attemptId,
+              userId,
+              examId
+            }
+          );
 
           if (existingAttemptId) {
             await linkAttemptToEnrollment(

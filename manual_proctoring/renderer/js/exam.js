@@ -862,7 +862,7 @@ function renderWarningHistory (violations = []) {
   }
 
   const recentViolations = Array.isArray(violations)
-    ? violations.slice(-5).reverse()
+    ? violations.slice(0, 5)
     : []
 
   if (recentViolations.length === 0) {
@@ -944,7 +944,7 @@ function renderWarningHistory (violations = []) {
   }
 
   const recentViolations = Array.isArray(violations)
-    ? violations.slice(-5).reverse()
+    ? violations.slice(0, 5)
     : []
 
   if (recentViolations.length === 0) {
@@ -1358,6 +1358,7 @@ async function reportViolation (type, detail, severity = 'warning') {
   }
 
   try {
+    const attemptId = Number(currentAttempt?.id || 0) || undefined
     const response = await fetchWithSessionOrRoom(
       `${API_BASE_URL}/api/exam/violations`,
       {
@@ -1365,7 +1366,14 @@ async function reportViolation (type, detail, severity = 'warning') {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ type, detail, severity })
+        body: JSON.stringify({
+          attemptId,
+          type,
+          violationType: type,
+          detail,
+          severity,
+          timestamp: Date.now()
+        })
       }
     )
 
@@ -1378,36 +1386,60 @@ async function reportViolation (type, detail, severity = 'warning') {
 
     const data = await response.json()
 
-    if (response.ok && data.attempt) {
-      if (backendDisconnected) {
-        clearReconnectCheck()
-        setBackendDisconnectedState(
-          false,
-          'Connection restored. Your exam is back online.'
-        )
-      }
-      currentAttempt = data.attempt
-      updateViolationCount(data.attempt.violationCount)
-      renderWarningHistory(data.attempt.violations)
-      if (severity === 'warning') {
-        playWarningBeep()
-      }
-
-      if (data.attempt.status === 'submitted') {
-        setExamStatus(
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
           data.message ||
-            `Exam terminated after reaching ${MAX_WARNINGS} warnings.`,
-          'error'
-        )
-        finishExamUI(data.attempt.submissionReason || 'warning_limit_reached')
-      } else {
-        showViolationStatus({ type, detail, severity })
-      }
+          `The server rejected the warning request (${response.status}).`
+      )
+    }
+
+    if (!data.attempt) {
+      throw new Error('The server did not return the updated exam attempt state.')
+    }
+
+    if (backendDisconnected) {
+      clearReconnectCheck()
+      setBackendDisconnectedState(
+        false,
+        'Connection restored. Your exam is back online.'
+      )
+    }
+    currentAttempt = data.attempt
+    updateViolationCount(data.attempt.violationCount)
+    renderWarningHistory(data.attempt.violations)
+    if (severity === 'warning') {
+      playWarningBeep()
+    }
+
+    if (data.attempt.status === 'submitted') {
+      setExamStatus(
+        data.message ||
+          `Exam terminated after reaching ${MAX_WARNINGS} warnings.`,
+        'error'
+      )
+      finishExamUI(data.attempt.submissionReason || 'warning_limit_reached')
+    } else {
+      showViolationStatus({ type, detail, severity })
     }
   } catch (error) {
     console.error('Failed to report violation:', error)
-    markBackendDisconnected(
-      'We could not reach the exam server while recording this event. Trying to reconnect...'
+    const errorMessage =
+      error instanceof Error && error.message
+        ? error.message
+        : 'The warning could not be recorded.'
+
+    if (error instanceof TypeError) {
+      markBackendDisconnected(
+        'We could not reach the exam server while recording this event. Trying to reconnect...'
+      )
+      return
+    }
+
+    setExamStatus(
+      `The warning could not be recorded: ${errorMessage}`,
+      'error',
+      { pin: true }
     )
   }
 }

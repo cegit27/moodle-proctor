@@ -44,6 +44,10 @@ export class ViolationService {
       timestamp
     } = request;
 
+    if (!attemptId || !violationType) {
+      throw new Error('Attempt not found');
+    }
+
     // Verify attempt belongs to user
     const attemptResult = await this.pg.query<{ id: number; user_id: number; status: string }>(
       'SELECT id, user_id, status FROM exam_attempts WHERE id = $1',
@@ -105,9 +109,16 @@ export class ViolationService {
 
       const violation = this.mapViolationRow(result.rows[0]);
 
-      // Update attempt violation count
+      // Keep the persisted counter aligned with warning severity only.
       await client.query(
-        'UPDATE exam_attempts SET violation_count = violation_count + 1 WHERE id = $1',
+        `UPDATE exam_attempts
+         SET violation_count = (
+           SELECT COUNT(*)
+           FROM violations
+           WHERE attempt_id = $1
+           AND severity = 'warning'
+         )
+         WHERE id = $1`,
         [attemptId]
       );
 
@@ -199,12 +210,10 @@ export class ViolationService {
    */
   async checkViolationCount(attemptId: number): Promise<ViolationCheckResponse> {
     const result = await this.pg.query<{ count: string; max_warnings: number }>(
-      `SELECT COUNT(*) as count, e.max_warnings
-      FROM violations v
-      JOIN exam_attempts ea ON v.attempt_id = ea.id
+      `SELECT ea.violation_count::text as count, e.max_warnings
+      FROM exam_attempts ea
       JOIN exams e ON ea.exam_id = e.id
-      WHERE ea.id = $1
-      GROUP BY e.max_warnings`,
+      WHERE ea.id = $1`,
       [attemptId]
     );
 

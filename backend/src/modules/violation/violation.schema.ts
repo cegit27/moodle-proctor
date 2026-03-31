@@ -7,8 +7,9 @@
 // ============================================================================
 
 export interface ReportViolationRequest {
-  attemptId: number;
-  violationType: string;
+  attemptId?: number;
+  violationType?: string;
+  type?: string;
   severity?: 'info' | 'warning';
   detail?: string;
   metadata?: Record<string, unknown>;

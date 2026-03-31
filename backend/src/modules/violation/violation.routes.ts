@@ -60,6 +60,7 @@ export default fp(async (fastify: FastifyInstance) => {
         | { attemptId: number | null; maxWarnings: number }
         | undefined;
       const body = (request.body || {}) as ReportViolationRequest & { type?: string };
+      const normalizedViolationType = body.violationType || body.type || undefined;
       const resolvedAttemptId = body.attemptId || roomEnrollment?.attemptId || undefined;
 
       if (!roomEnrollment && isManualProctoringRequest(request)) {
@@ -73,7 +74,7 @@ export default fp(async (fastify: FastifyInstance) => {
         }
 
         const result = recordManualViolation(
-          body.type || body.violationType || 'unknown',
+          normalizedViolationType || 'unknown',
           body.detail || '',
           body.severity
         );
@@ -85,7 +86,7 @@ export default fp(async (fastify: FastifyInstance) => {
         });
       }
 
-      if (!resolvedAttemptId || !body.violationType) {
+      if (!resolvedAttemptId || !normalizedViolationType) {
         return reply.code(400).send({
           success: false,
           error: 'Attempt ID and violation type are required',
@@ -102,7 +103,7 @@ export default fp(async (fastify: FastifyInstance) => {
           {
             ...body,
             attemptId: resolvedAttemptId,
-            violationType: body.violationType || body.type || 'unknown'
+            violationType: normalizedViolationType
           },
           userId,
           signatureService

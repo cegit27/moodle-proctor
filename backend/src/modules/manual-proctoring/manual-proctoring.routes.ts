@@ -17,7 +17,8 @@ import {
 } from './manual-proctoring.compat';
 import {
   getCompatibilityAttemptSnapshot,
-  getQuestionPaperFilename
+  getQuestionPaperFilename,
+  resolveRoomEnrollmentAttemptId
 } from '../room/room-enrollment.service';
 
 export default fp(async (fastify: FastifyInstance) => {
@@ -110,8 +111,9 @@ export default fp(async (fastify: FastifyInstance) => {
 
   fastify.get('/api/exam', { onRequest: [authMiddleware] }, async (request, reply) => {
     const roomEnrollment = (request as any).roomEnrollment as
-      | {
+        | {
           enrollmentId: number;
+          examId: number;
           attemptId: number | null;
           examName: string;
           courseName: string;
@@ -125,9 +127,20 @@ export default fp(async (fastify: FastifyInstance) => {
       | undefined;
 
     if (roomEnrollment) {
+      const userId = (request as any).user?.id as number;
+      const resolvedAttemptId = await resolveRoomEnrollmentAttemptId(
+        fastify.pg as any,
+        {
+          enrollmentId: roomEnrollment.enrollmentId,
+          linkedAttemptId: roomEnrollment.attemptId,
+          userId,
+          examId: roomEnrollment.examId
+        }
+      );
+
       const attempt = await getCompatibilityAttemptSnapshot(
         fastify.pg as any,
-        roomEnrollment.attemptId,
+        resolvedAttemptId,
         roomEnrollment.maxWarnings
       );
 
