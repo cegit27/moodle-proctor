@@ -30,6 +30,22 @@ let pinnedExamStatus = null
 
 let roomEnrollment = null
 
+async function getSafeStorage () {
+  const safeStorage = window.electronAPI?.safeStorage
+
+  if (!safeStorage) {
+    return null
+  }
+
+  try {
+    const isEncryptionAvailable = await safeStorage.isEncryptionAvailable()
+    return isEncryptionAvailable ? safeStorage : null
+  } catch (error) {
+    console.error('Failed to access safeStorage availability:', error)
+    return null
+  }
+}
+
 /**
  * Decrypt and retrieve enrollment data from localStorage
  * Handles both encrypted (safeStorage) and unencrypted (legacy) data
@@ -42,13 +58,14 @@ async function getRoomEnrollment() {
     // Try to read and decrypt encrypted data first
     const encryptedData = localStorage.getItem(encryptedKey);
     if (encryptedData) {
-      if (window.electron && window.electron.safeStorage) {
-        const decryptedString = await window.electron.safeStorage.decryptString(encryptedData);
+      const safeStorage = await getSafeStorage()
+
+      if (safeStorage) {
+        const decryptedString = await safeStorage.decryptString(encryptedData);
         return JSON.parse(decryptedString);
       } else {
         // safeStorage not available, can't decrypt
         console.warn('Encrypted data found but safeStorage unavailable');
-        return null;
       }
     }
 

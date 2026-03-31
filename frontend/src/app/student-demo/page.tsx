@@ -1,125 +1,57 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useWebRTCProducer } from '@/hooks/useWebRTCProducer';
 
-const ROOM_SESSION_STORAGE_KEY = 'student-demo-room-session';
+const FORM_STORAGE_KEY = 'student-desktop-launch-form';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ROOM_CODE_REGEX = /^[A-Z0-9]{8}$/;
 
-interface JoinedRoomSession {
-  enrollmentId: number;
-  roomId: number;
+interface LaunchFormState {
   roomCode: string;
-  examName: string;
-  courseName: string;
-  status: string;
-  enrollmentSignature: string;
   studentName: string;
   studentEmail: string;
 }
 
-interface StudentJoinResponse {
-  success: boolean;
-  data?: {
-    enrollmentId: number;
-    roomId: number;
-    roomCode: string;
-    examName: string;
-    courseName: string;
-    status: string;
-    enrollmentSignature: string;
-  };
-  error?: string;
+function normalizeRoomCode(roomCode: string) {
+  return roomCode.replace(/\s/g, '').toUpperCase();
 }
 
-function LocalVideoPreview({ stream }: { stream: MediaStream | null }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream]);
-
-  return (
-    <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">Local Preview</p>
-          <p className="text-xs text-slate-500">This is what the monitoring workspace should receive.</p>
-        </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-          muted locally
-        </span>
-      </div>
-      <div className="aspect-video bg-slate-950">
-        {stream ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">
-            Start the broadcast to preview your camera feed.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function StudentDemoPage() {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
-  const stablePeerId = useRef(`student-${Date.now()}`);
-
-  const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [studentNameInput, setStudentNameInput] = useState('');
-  const [studentEmailInput, setStudentEmailInput] = useState('');
-  const [joinedRoom, setJoinedRoom] = useState<JoinedRoomSession | null>(null);
-  const [joinError, setJoinError] = useState<string | null>(null);
-  const [isJoining, setIsJoining] = useState(false);
-  const [hasLoadedStoredRoom, setHasLoadedStoredRoom] = useState(false);
-
-  const normalizedRoomCode = useMemo(() => roomCodeInput.trim().toUpperCase(), [roomCodeInput]);
-  const normalizedStudentName = useMemo(
-    () => studentNameInput.trim() || 'Student',
-    [studentNameInput]
-  );
-  const normalizedStudentEmail = useMemo(
-    () => studentEmailInput.trim().toLowerCase(),
-    [studentEmailInput]
-  );
-
-  const requestHeaders = useMemo<HeadersInit | undefined>(() => {
-    if (!joinedRoom) {
-      return undefined;
-    }
-
-    return {
-      'X-Room-Enrollment-Id': joinedRoom.enrollmentId.toString(),
-      'X-Room-Id': joinedRoom.roomId.toString(),
-      'X-Room-Code': joinedRoom.roomCode,
-      'X-Student-Email': joinedRoom.studentEmail,
-      'X-Room-Enrollment-Signature': joinedRoom.enrollmentSignature,
-    };
-  }, [joinedRoom]);
-
-  const {
-    localStream,
-    isConnected,
-    isProducing,
-    error,
-    startBroadcast,
-    stopBroadcast,
-  } = useWebRTCProducer({
-    roomId: joinedRoom?.roomCode || 'pending-room',
-    peerId: stablePeerId.current,
-    studentName: joinedRoom?.studentName || normalizedStudentName,
-    backendUrl,
-    requestHeaders,
+export default function StudentDesktopLaunchPage() {
+  const launchTimerRef = useRef<number | null>(null);
+  const [form, setForm] = useState<LaunchFormState>({
+    roomCode: '',
+    studentName: '',
+    studentEmail: '',
   });
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [showFallbackHelp, setShowFallbackHelp] = useState(false);
+  const [copiedField, setCopiedField] = useState<'roomCode' | 'desktopLink' | null>(null);
+
+  const normalizedRoomCode = useMemo(() => normalizeRoomCode(form.roomCode), [form.roomCode]);
+  const normalizedStudentName = useMemo(() => form.studentName.trim(), [form.studentName]);
+  const normalizedStudentEmail = useMemo(
+    () => form.studentEmail.trim().toLowerCase(),
+    [form.studentEmail]
+  );
+
+  const desktopLink = useMemo(() => {
+    if (!normalizedRoomCode) {
+      return '';
+    }
+
+    const params = new URLSearchParams({ autoJoin: '1' });
+
+    if (normalizedStudentName) {
+      params.set('name', normalizedStudentName);
+    }
+
+    if (normalizedStudentEmail) {
+      params.set('email', normalizedStudentEmail);
+    }
+
+    return `proctor://room/${normalizedRoomCode}?${params.toString()}`;
+  }, [normalizedRoomCode, normalizedStudentEmail, normalizedStudentName]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -127,263 +59,276 @@ export default function StudentDemoPage() {
     }
 
     try {
-      const storedRoom = sessionStorage.getItem(ROOM_SESSION_STORAGE_KEY);
-      if (!storedRoom) {
-        setHasLoadedStoredRoom(true);
+      const storedForm = window.sessionStorage.getItem(FORM_STORAGE_KEY);
+      const queryCode = new URLSearchParams(window.location.search).get('code');
+
+      if (!storedForm && !queryCode) {
         return;
       }
 
-      const parsedRoom = JSON.parse(storedRoom) as JoinedRoomSession;
-      setJoinedRoom(parsedRoom);
-      setRoomCodeInput(parsedRoom.roomCode);
-      setStudentNameInput(parsedRoom.studentName);
-      setStudentEmailInput(parsedRoom.studentEmail);
+      const parsedForm = storedForm ? (JSON.parse(storedForm) as Partial<LaunchFormState>) : {};
+
+      setForm({
+        roomCode: normalizeRoomCode(queryCode || parsedForm.roomCode || ''),
+        studentName: parsedForm.studentName || '',
+        studentEmail: parsedForm.studentEmail || '',
+      });
     } catch (storageError) {
-      console.error('Failed to restore saved room session:', storageError);
-      sessionStorage.removeItem(ROOM_SESSION_STORAGE_KEY);
-    } finally {
-      setHasLoadedStoredRoom(true);
+      console.error('Failed to restore desktop launch form:', storageError);
+      window.sessionStorage.removeItem(FORM_STORAGE_KEY);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !hasLoadedStoredRoom) {
+    if (typeof window === 'undefined') {
       return;
     }
 
-    if (joinedRoom) {
-      sessionStorage.setItem(ROOM_SESSION_STORAGE_KEY, JSON.stringify(joinedRoom));
-      return;
-    }
-
-    sessionStorage.removeItem(ROOM_SESSION_STORAGE_KEY);
-  }, [hasLoadedStoredRoom, joinedRoom]);
-
-  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!normalizedRoomCode || !normalizedStudentEmail) {
-      setJoinError('Enter the room code and student email before joining.');
-      return;
-    }
-
-    try {
-      setIsJoining(true);
-      setJoinError(null);
-
-      const response = await fetch(`${backendUrl}/api/room/${encodeURIComponent(normalizedRoomCode)}/join`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName: normalizedStudentName,
-          studentEmail: normalizedStudentEmail,
-        }),
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as StudentJoinResponse;
-
-      if (!response.ok || !payload.success || !payload.data) {
-        throw new Error(payload.error || `Failed to join room (${response.status})`);
-      }
-
-      setJoinedRoom({
-        ...payload.data,
-        roomCode: payload.data.roomCode.toUpperCase(),
+    window.sessionStorage.setItem(
+      FORM_STORAGE_KEY,
+      JSON.stringify({
+        roomCode: normalizedRoomCode,
         studentName: normalizedStudentName,
         studentEmail: normalizedStudentEmail,
-      });
-      setRoomCodeInput(payload.data.roomCode.toUpperCase());
-    } catch (joinRequestError) {
-      setJoinError(
-        joinRequestError instanceof Error ? joinRequestError.message : 'Failed to join room.'
-      );
-    } finally {
-      setIsJoining(false);
+      } satisfies LaunchFormState)
+    );
+  }, [normalizedRoomCode, normalizedStudentEmail, normalizedStudentName]);
+
+  useEffect(() => {
+    return () => {
+      if (launchTimerRef.current !== null) {
+        window.clearTimeout(launchTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = async (value: string, field: 'roomCode' | 'desktopLink') => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField(null), 2000);
+    } catch (copyError) {
+      console.error('Failed to copy student desktop launch value:', copyError);
     }
   };
 
-  const handleStartBroadcast = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!joinedRoom) {
-      setJoinError('Join the room first so the broadcast can be attached to your enrollment.');
+    if (!normalizedStudentName || normalizedStudentName.length < 2) {
+      setError('Enter your full name before continuing.');
       return;
     }
 
-    await startBroadcast();
-  };
+    if (!EMAIL_REGEX.test(normalizedStudentEmail)) {
+      setError('Enter a valid email address before continuing.');
+      return;
+    }
 
-  const handleResetSession = async () => {
-    await stopBroadcast();
-    setJoinedRoom(null);
-    setJoinError(null);
-  };
+    if (!ROOM_CODE_REGEX.test(normalizedRoomCode)) {
+      setError('Enter the 8-character room code shared by your teacher.');
+      return;
+    }
 
-  const joinedStatus = joinedRoom ? `Joined ${joinedRoom.roomCode}` : 'Not joined';
+    setError(null);
+    setShowFallbackHelp(false);
+    setStatus('Opening the desktop app and passing your room details...');
+
+    if (launchTimerRef.current !== null) {
+      window.clearTimeout(launchTimerRef.current);
+    }
+
+    window.location.href = desktopLink;
+
+    launchTimerRef.current = window.setTimeout(() => {
+      setShowFallbackHelp(true);
+      setStatus('If the desktop app did not open, use the fallback options below.');
+    }, 1600);
+  };
 
   return (
-    <main className="min-h-screen px-4 py-8 sm:px-6">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-        <section className="dashboard-panel overflow-hidden rounded-[32px] px-6 py-6 sm:px-8 sm:py-8">
-          <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
-            <div className="space-y-4">
-              <span className="inline-flex rounded-full border border-sky-300 bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-                Student Room Client
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,116,144,0.12),_transparent_40%),linear-gradient(180deg,_#f8fafc_0%,_#e2e8f0_100%)] px-4 py-10 sm:px-6">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+        <section className="overflow-hidden rounded-[32px] border border-slate-200/70 bg-white/90 shadow-[0_28px_90px_-50px_rgba(15,23,42,0.6)] backdrop-blur">
+          <div className="grid gap-0 lg:grid-cols-[1.05fr,0.95fr]">
+            <div className="border-b border-slate-200/80 p-6 sm:p-8 lg:border-b-0 lg:border-r">
+              <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-700">
+                Desktop Exam Launch
               </span>
-              <div className="space-y-3">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                  Join your proctoring room and publish camera + mic
-                </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                  Enter the invite code from the monitoring dashboard, save your enrollment in this
-                  browser tab, and stream directly into the matching live room.
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                Continue in the proctoring app
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                The exam runs in the Electron desktop app, not in this browser tab. Enter your
+                room details, then continue so the desktop client can join the room and open the
+                exam session automatically.
+              </p>
+
+              <div className="mt-6 grid gap-3 text-sm text-slate-600">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  1. Enter the room code, your name, and your institutional email.
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  2. Click <span className="font-semibold text-slate-900">Proceed in Desktop App</span>.
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  3. The Electron app opens, joins your room, and starts the exam flow there.
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-8">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-slate-900">Room code</span>
+                  <input
+                    value={form.roomCode}
+                    onChange={event =>
+                      setForm(current => ({
+                        ...current,
+                        roomCode: normalizeRoomCode(event.target.value),
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm uppercase tracking-[0.18em] text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                    maxLength={8}
+                    placeholder="AB12CD34"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-slate-900">Full name</span>
+                  <input
+                    value={form.studentName}
+                    onChange={event =>
+                      setForm(current => ({
+                        ...current,
+                        studentName: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                    placeholder="Aarav Sharma"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-semibold text-slate-900">Email address</span>
+                  <input
+                    value={form.studentEmail}
+                    onChange={event =>
+                      setForm(current => ({
+                        ...current,
+                        studentEmail: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-100"
+                    placeholder="student@example.com"
+                    type="email"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-700"
+                >
+                  Proceed in Desktop App
+                </button>
+              </form>
+
+              {error ? (
+                <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {error}
+                </div>
+              ) : null}
+
+              {status ? (
+                <div className="mt-4 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
+                  {status}
+                </div>
+              ) : null}
+
+              <div className="mt-6 rounded-[28px] border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">Prepared desktop handoff</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Your room and identity details are packed into the desktop launch link below.
                 </p>
+
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Room code
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={normalizedRoomCode}
+                        className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-slate-900"
+                      />
+                      <button
+                        type="button"
+                        disabled={!normalizedRoomCode}
+                        onClick={() => handleCopy(normalizedRoomCode, 'roomCode')}
+                        className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {copiedField === 'roomCode' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Desktop link
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={desktopLink}
+                        className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-xs text-slate-700"
+                      />
+                      <button
+                        type="button"
+                        disabled={!desktopLink}
+                        onClick={() => handleCopy(desktopLink, 'desktopLink')}
+                        className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {copiedField === 'desktopLink' ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <form
-                onSubmit={handleJoinRoom}
-                className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5"
-              >
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-900">Room code</span>
-                    <input
-                      value={roomCodeInput}
-                      onChange={event => setRoomCodeInput(event.target.value.toUpperCase())}
-                      disabled={Boolean(joinedRoom)}
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm uppercase text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-                      placeholder="AB12CD34"
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-900">Student name</span>
-                    <input
-                      value={studentNameInput}
-                      onChange={event => setStudentNameInput(event.target.value)}
-                      disabled={Boolean(joinedRoom)}
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-                      placeholder="Aarav Sharma"
-                    />
-                  </label>
-
-                  <label className="space-y-2">
-                    <span className="text-sm font-semibold text-slate-900">Student email</span>
-                    <input
-                      value={studentEmailInput}
-                      onChange={event => setStudentEmailInput(event.target.value)}
-                      disabled={Boolean(joinedRoom)}
-                      className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-                      placeholder="student@example.com"
-                      type="email"
-                    />
-                  </label>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="submit"
-                    disabled={Boolean(joinedRoom) || isJoining}
-                    className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
-                  >
-                    {joinedRoom ? 'Joined' : isJoining ? 'Joining...' : 'Join room'}
-                  </button>
-
-                  {joinedRoom ? (
+              {showFallbackHelp ? (
+                <div className="mt-6 rounded-[28px] border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+                  <p className="font-semibold">If the desktop app did not open</p>
+                  <p className="mt-2 leading-6">
+                    Open the Electron proctoring app manually. If it is already open, use the room
+                    code above in the desktop join screen. You can also try the launch button again
+                    after the app has been started once on this device.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={() => {
-                        handleResetSession().catch(console.error);
+                        if (desktopLink) {
+                          window.location.href = desktopLink;
+                        }
                       }}
-                      className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                      className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
                     >
-                      Reset saved session
+                      Try desktop launch again
                     </button>
-                  ) : null}
-
-                  <div className="ml-auto flex flex-wrap gap-2 text-xs font-semibold">
-                    <span
-                      className={`rounded-full px-3 py-1 ${
-                        joinedRoom ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(normalizedRoomCode, 'roomCode')}
+                      disabled={!normalizedRoomCode}
+                      className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      room: {joinedStatus}
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 ${
-                        isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                      }`}
-                    >
-                      transport: {isConnected ? 'connected' : 'waiting'}
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 ${
-                        isProducing ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      media: {isProducing ? 'publishing' : 'idle'}
-                    </span>
+                      Copy room code
+                    </button>
                   </div>
                 </div>
-
-                {joinedRoom ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                    <p className="font-semibold">{joinedRoom.examName}</p>
-                    <p className="mt-1">
-                      {joinedRoom.courseName} • Room {joinedRoom.roomCode} • Enrollment #{joinedRoom.enrollmentId}
-                    </p>
-                  </div>
-                ) : null}
-
-                {joinError ? (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    {joinError}
-                  </div>
-                ) : null}
-              </form>
-
-              <form
-                onSubmit={handleStartBroadcast}
-                className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-5"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Broadcast controls</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Start after the room join succeeds. The teacher dashboard should be watching the
-                    same room code.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="submit"
-                    disabled={!joinedRoom}
-                    className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
-                  >
-                    {isProducing ? 'Restart broadcast' : 'Start broadcast'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      stopBroadcast().catch(console.error);
-                    }}
-                    className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                  >
-                    Stop broadcast
-                  </button>
-                </div>
-
-                {error ? (
-                  <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    {error}
-                  </div>
-                ) : null}
-              </form>
+              ) : null}
             </div>
-
-            <LocalVideoPreview stream={localStream} />
           </div>
         </section>
       </div>

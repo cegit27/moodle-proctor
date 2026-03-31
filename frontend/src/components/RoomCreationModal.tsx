@@ -23,8 +23,12 @@ export const RoomCreationModal = ({
   const [isCreating, setIsCreating] = useState(false);
   const [isLoadingExams, setIsLoadingExams] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdRoom, setCreatedRoom] = useState<{ roomCode: string; inviteLink: string } | null>(null);
-  const [copiedValue, setCopiedValue] = useState<"invite" | "code" | null>(null);
+  const [createdRoom, setCreatedRoom] = useState<{
+    roomCode: string;
+    inviteLink: string;
+    launchLink: string;
+  } | null>(null);
+  const [copiedValue, setCopiedValue] = useState<"invite" | "launch" | "code" | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -95,7 +99,12 @@ export const RoomCreationModal = ({
         }
       });
 
-      setCreatedRoom({ roomCode, inviteLink });
+      const launchLink = new URL(
+        `/student-demo?code=${encodeURIComponent(roomCode)}`,
+        window.location.origin
+      ).toString();
+
+      setCreatedRoom({ roomCode, inviteLink, launchLink });
       onRoomCreated({ roomId, roomCode, inviteLink });
     } catch (err) {
       console.error("[RoomCreation] Error creating room:", err);
@@ -105,7 +114,7 @@ export const RoomCreationModal = ({
     }
   };
 
-  const handleCopy = async (value: string, kind: "invite" | "code") => {
+  const handleCopy = async (value: string, kind: "invite" | "launch" | "code") => {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedValue(kind);
@@ -142,12 +151,34 @@ export const RoomCreationModal = ({
               <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                 <p className="text-sm font-medium text-green-800">Room activated successfully.</p>
                 <p className="mt-1 text-xs text-green-600">
-                  Share the invite code or room link with students.
+                  Share the student launch page so candidates can open the Electron exam app with the room code prefilled.
                 </p>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Invite Link</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Student Launch Link</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={createdRoom.launchLink}
+                    className="flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm font-mono"
+                  />
+                  <button
+                    onClick={() => handleCopy(createdRoom.launchLink, "launch")}
+                    className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700"
+                  >
+                    {copiedValue === "launch" ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
+                    {copiedValue === "launch" ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Students open this page in the browser, enter their details, and click proceed to continue in the desktop app.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Desktop Deep Link</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -157,12 +188,15 @@ export const RoomCreationModal = ({
                   />
                   <button
                     onClick={() => handleCopy(createdRoom.inviteLink, "invite")}
-                    className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700"
+                    className="flex items-center gap-1 rounded-lg bg-gray-900 px-3 py-2 text-white transition-colors hover:bg-gray-700"
                   >
                     {copiedValue === "invite" ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                     {copiedValue === "invite" ? "Copied!" : "Copy"}
                   </button>
                 </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Use this if the student already has the Electron app open and registered on the machine.
+                </p>
               </div>
 
               <div>

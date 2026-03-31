@@ -21,6 +21,8 @@ function setLoadingState(isLoading) {
   joinButton.innerText = isLoading ? 'Joining...' : 'Join Room';
 }
 
+let hasAttemptedAutoJoin = false;
+
 function normalizeRoomCode(code) {
   // Remove spaces, convert to uppercase
   return code.replace(/\s/g, '').toUpperCase();
@@ -49,6 +51,22 @@ function validateInputs(name, email, roomCode) {
   return true;
 }
 
+async function getSafeStorage() {
+  const safeStorage = window.electronAPI?.safeStorage;
+
+  if (!safeStorage) {
+    return null;
+  }
+
+  try {
+    const isEncryptionAvailable = await safeStorage.isEncryptionAvailable();
+    return isEncryptionAvailable ? safeStorage : null;
+  } catch (error) {
+    console.error('Failed to access safeStorage availability:', error);
+    return null;
+  }
+}
+
 /**
  * Encrypt and store enrollment data using Electron's safeStorage
  * Falls back to regular localStorage if safeStorage is unavailable
@@ -58,20 +76,23 @@ async function storeRoomEnrollment(enrollmentData) {
   const dataString = JSON.stringify(enrollmentData);
 
   try {
-    // Check if we're running in Electron and safeStorage is available
-    if (window.electron && window.electron.safeStorage) {
+    const safeStorage = await getSafeStorage();
+
+    if (safeStorage) {
       // Encrypt the data
-      const encryptedData = await window.electron.safeStorage.encryptString(dataString);
+      const encryptedData = await safeStorage.encryptString(dataString);
       localStorage.setItem(encryptedKey, encryptedData);
       localStorage.removeItem('roomEnrollment'); // Remove unencrypted version
     } else {
       // Fallback: store unencrypted (development/non-Electron environment)
       console.warn('safeStorage not available, storing unencrypted data');
+      localStorage.removeItem(encryptedKey);
       localStorage.setItem('roomEnrollment', dataString);
     }
   } catch (error) {
     console.error('Encryption failed, falling back to unencrypted storage:', error);
     // Fallback to unencrypted storage on error
+    localStorage.removeItem(encryptedKey);
     localStorage.setItem('roomEnrollment', dataString);
   }
 }
@@ -151,10 +172,11 @@ async function joinRoom() {
   }
 }
 
-// Pre-fill room code from URL parameter (if provided via proctor:// link)
-function prefillRoomCode() {
+function prefillJoinDetails() {
   const urlParams = new URLSearchParams(window.location.search);
   const codeFromUrl = urlParams.get('code');
+  const nameFromUrl = urlParams.get('name');
+  const emailFromUrl = urlParams.get('email');
 
   if (codeFromUrl) {
     const codeInput = document.getElementById('roomCode');
@@ -162,11 +184,48 @@ function prefillRoomCode() {
       codeInput.value = normalizeRoomCode(codeFromUrl);
     }
   }
+
+  if (nameFromUrl) {
+    const nameInput = document.getElementById('studentName');
+    if (nameInput) {
+      nameInput.value = nameFromUrl.trim();
+    }
+  }
+
+  if (emailFromUrl) {
+    const emailInput = document.getElementById('studentEmail');
+    if (emailInput) {
+      emailInput.value = emailFromUrl.trim().toLowerCase();
+    }
+  }
+}
+
+function shouldAutoJoinFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const autoJoinValue = (urlParams.get('autoJoin') || '').trim().toLowerCase();
+  return ['1', 'true', 'yes'].includes(autoJoinValue);
+}
+
+function attemptAutoJoin() {
+  if (hasAttemptedAutoJoin || !shouldAutoJoinFromUrl()) {
+    return;
+  }
+
+  const name = document.getElementById('studentName')?.value?.trim();
+  const email = document.getElementById('studentEmail')?.value?.trim();
+  const roomCode = document.getElementById('roomCode')?.value?.trim();
+
+  if (!name || !email || !roomCode) {
+    return;
+  }
+
+  hasAttemptedAutoJoin = true;
+  joinRoom();
 }
 
 // Initialize on page load
 window.addEventListener('load', () => {
-  prefillRoomCode();
+  prefillJoinDetails();
 
   // Allow pressing Enter in any field to submit
   const inputs = ['studentName', 'studentEmail', 'roomCode'];
@@ -180,4 +239,6 @@ window.addEventListener('load', () => {
       });
     }
   });
+
+  attemptAutoJoin();
 });
