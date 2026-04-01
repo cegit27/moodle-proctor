@@ -1,4 +1,5 @@
 type LiveFrameRecord = {
+  feedId: string;
   roomCode: string;
   attemptId: number | null;
   userId: number;
@@ -15,7 +16,7 @@ class LiveMonitoringStore {
   private readonly frames = new Map<string, LiveFrameRecord>();
 
   upsertFrame(record: Omit<LiveFrameRecord, 'updatedAt'> & { updatedAt?: number }) {
-    const key = this.getKey(record.roomCode, record.attemptId, record.userId);
+    const key = record.feedId;
 
     this.frames.set(key, {
       ...record,
@@ -25,16 +26,24 @@ class LiveMonitoringStore {
     this.prune();
   }
 
-  getRoomFrames(roomCode: string): LiveFrameRecord[] {
+  getRoomFrames(roomCode: string, since?: number): {
+    frames: LiveFrameRecord[];
+    activeFeedIds: string[];
+    roomUpdatedAt: number;
+  } {
     this.prune();
 
-    return Array.from(this.frames.values())
+    const roomFrames = Array.from(this.frames.values())
       .filter(frame => frame.roomCode.toUpperCase() === roomCode.toUpperCase())
       .sort((a, b) => b.updatedAt - a.updatedAt);
-  }
 
-  private getKey(roomCode: string, attemptId: number | null, userId: number) {
-    return `${roomCode.toUpperCase()}:${attemptId ?? 'no-attempt'}:${userId}`;
+    const normalizedSince = typeof since === 'number' && Number.isFinite(since) ? since : 0;
+
+    return {
+      frames: roomFrames.filter(frame => frame.updatedAt > normalizedSince),
+      activeFeedIds: roomFrames.map(frame => frame.feedId),
+      roomUpdatedAt: roomFrames[0]?.updatedAt ?? 0,
+    };
   }
 
   private prune() {

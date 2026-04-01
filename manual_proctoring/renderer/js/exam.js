@@ -150,7 +150,7 @@ const EXAM_CONFIG = {
   networkAppWarningCooldownMs: 5000,
   reconnectCheckIntervalMs: 5000,
   proctorFrameIntervalMs: 125,
-  liveSnapshotUploadIntervalMs: 1000,
+  liveSnapshotUploadIntervalMs: 350,
   aiWarningDefaultDwellMs: 0,
   aiWarningDwellMs: {
     'No face detected': 500,
@@ -2014,6 +2014,8 @@ function startFrameCapture (video) {
 function startFrameCaptureWithOverlay (video) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
+  const snapshotCanvas = document.createElement('canvas')
+  const snapshotCtx = snapshotCanvas.getContext('2d')
 
   const WS_URL = window.PROCTOR_WS_URL || 'ws://localhost:8000/proctor'
   let ws = null
@@ -2022,6 +2024,7 @@ function startFrameCaptureWithOverlay (video) {
   let hasConnectedOnce = false
   let stopped = false
   let lastSnapshotUploadAt = 0
+  let snapshotUploadInFlight = false
 
   setAIProctoringStatus({
     state: 'starting',
@@ -2138,9 +2141,48 @@ function startFrameCaptureWithOverlay (video) {
     }
   }
 
+  function captureSnapshotFrame () {
+    if (!snapshotCtx || !video.videoWidth || !video.videoHeight) {
+      return null
+    }
+
+    const targetWidth = Math.min(480, video.videoWidth)
+    const targetHeight = Math.max(
+      1,
+      Math.round((video.videoHeight / video.videoWidth) * targetWidth)
+    )
+
+    snapshotCanvas.width = targetWidth
+    snapshotCanvas.height = targetHeight
+    snapshotCtx.drawImage(video, 0, 0, targetWidth, targetHeight)
+
+    return snapshotCanvas.toDataURL('image/jpeg', 0.4).split(',')[1]
+  }
+
   function sendFrame () {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return
     if (!video.videoWidth) return
+
+    const now = Date.now()
+    if (
+      now - lastSnapshotUploadAt >= EXAM_CONFIG.liveSnapshotUploadIntervalMs &&
+      !snapshotUploadInFlight
+    ) {
+      const snapshotFrame = captureSnapshotFrame()
+
+      if (snapshotFrame) {
+        lastSnapshotUploadAt = now
+        snapshotUploadInFlight = true
+        uploadLiveSnapshot(snapshotFrame)
+          .catch(error => {
+            console.warn('[Live Monitoring] Snapshot upload failed:', error)
+          })
+          .finally(() => {
+            snapshotUploadInFlight = false
+          })
+      }
+    }
+
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
     if (ws.bufferedAmount > 0) return
 
     canvas.width = video.videoWidth
@@ -2148,14 +2190,6 @@ function startFrameCaptureWithOverlay (video) {
     ctx.drawImage(video, 0, 0)
     const frame = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]
     ws.send(JSON.stringify({ frame }))
-
-    const now = Date.now()
-    if (now - lastSnapshotUploadAt >= EXAM_CONFIG.liveSnapshotUploadIntervalMs) {
-      lastSnapshotUploadAt = now
-      uploadLiveSnapshot(frame).catch(error => {
-        console.warn('[Live Monitoring] Snapshot upload failed:', error)
-      })
-    }
   }
 
   connect()

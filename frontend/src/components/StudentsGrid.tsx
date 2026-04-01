@@ -6,9 +6,11 @@ import { useWebRTC } from '@/hooks/useWebRTC';
 import { VideoStream } from './VideoStream';
 
 const MAX_VISIBLE_SLOTS = 15;
-const SNAPSHOT_POLL_INTERVAL_MS = 1500;
+const SNAPSHOT_POLL_INTERVAL_MS = 500;
+const SNAPSHOT_STALE_THRESHOLD_MS = 3000;
 
 interface SnapshotFeed {
+  feedId: string;
   attemptId: number | null;
   userId: number;
   studentName: string;
@@ -25,6 +27,8 @@ export const StudentsGrid = ({ roomId }: StudentsGridProps) => {
   const hasAutoJoined = useRef(false);
   const previousRoomId = useRef<string | undefined>(undefined);
   const [snapshotFeeds, setSnapshotFeeds] = useState<SnapshotFeed[]>([]);
+  const snapshotSinceRef = useRef(0);
+  const snapshotFetchInFlightRef = useRef(false);
 
   const teacherPeerId = useRef(`teacher-${Date.now()}`);
 
@@ -48,40 +52,75 @@ export const StudentsGrid = ({ roomId }: StudentsGridProps) => {
   useEffect(() => {
     if (!roomId) {
       setSnapshotFeeds([]);
+      snapshotSinceRef.current = 0;
+      snapshotFetchInFlightRef.current = false;
       return;
     }
 
     let isMounted = true;
 
     const loadSnapshots = async () => {
+      if (snapshotFetchInFlightRef.current) {
+        return;
+      }
+
+      snapshotFetchInFlightRef.current = true;
+
       try {
         const response = await fetch(
-          `${backendUrl}/api/live-monitoring/rooms/${encodeURIComponent(roomId)}/frames`,
+          `${backendUrl}/api/live-monitoring/rooms/${encodeURIComponent(roomId)}/frames?since=${snapshotSinceRef.current}`,
           {
             credentials: 'include',
           }
         );
 
         if (!response.ok) {
-          if (isMounted) {
-            setSnapshotFeeds([]);
-          }
           return;
         }
 
         const result = await response.json().catch(() => null);
         const frames = Array.isArray(result?.data?.frames) ? result.data.frames : [];
+        const activeFeedIds = Array.isArray(result?.data?.activeFeedIds)
+          ? result.data.activeFeedIds
+          : [];
+        const roomUpdatedAt =
+          typeof result?.data?.roomUpdatedAt === 'number' ? result.data.roomUpdatedAt : 0;
 
         if (isMounted) {
-          setSnapshotFeeds(frames.slice(0, MAX_VISIBLE_SLOTS));
+          setSnapshotFeeds(previousFeeds => {
+            const nextFeeds = new Map(previousFeeds.map(feed => [feed.feedId, feed]));
+
+            for (const frame of frames) {
+              if (!frame?.feedId) {
+                continue;
+              }
+
+              nextFeeds.set(frame.feedId, frame as SnapshotFeed);
+            }
+
+            for (const feedId of Array.from(nextFeeds.keys())) {
+              if (!activeFeedIds.includes(feedId)) {
+                nextFeeds.delete(feedId);
+              }
+            }
+
+            return Array.from(nextFeeds.values())
+              .sort((a, b) => b.updatedAt - a.updatedAt)
+              .slice(0, MAX_VISIBLE_SLOTS);
+          });
+        }
+
+        if (roomUpdatedAt > snapshotSinceRef.current) {
+          snapshotSinceRef.current = roomUpdatedAt;
         }
       } catch {
-        if (isMounted) {
-          setSnapshotFeeds([]);
-        }
+        // Keep the last good frame set in place to avoid wall flicker on transient failures.
+      } finally {
+        snapshotFetchInFlightRef.current = false;
       }
     };
 
+    snapshotSinceRef.current = 0;
     loadSnapshots().catch(console.error);
     const timerId = window.setInterval(() => {
       loadSnapshots().catch(console.error);
@@ -250,12 +289,13 @@ export const StudentsGrid = ({ roomId }: StudentsGridProps) => {
                   })
                 : snapshotFeeds.map((feed) => (
                     <article
-                      key={`${feed.userId}-${feed.updatedAt}`}
+                      key={feed.feedId}
                       className="group relative min-h-[240px] overflow-hidden rounded-[24px] border border-white/10 bg-slate-900 shadow-2xl shadow-slate-950/20"
                     >
                       <img
                         src={feed.imageDataUrl}
                         alt={`${feed.studentName} live snapshot`}
+                        loading="eager"
                         className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.015]"
                       />
 
@@ -266,7 +306,9 @@ export const StudentsGrid = ({ roomId }: StudentsGridProps) => {
                         </div>
 
                         <div className="rounded-full bg-slate-950/70 px-3 py-1.5 text-[11px] font-medium text-slate-200 backdrop-blur-sm">
-                          {Math.max(0, Math.round((Date.now() - feed.updatedAt) / 1000))}s ago
+                          {Date.now() - feed.updatedAt > SNAPSHOT_STALE_THRESHOLD_MS
+                            ? 'reconnecting'
+                            : `${Math.max(0, Math.round((Date.now() - feed.updatedAt) / 1000))}s ago`}
                         </div>
                       </div>
 
@@ -327,7 +369,7 @@ export const StudentsGrid = ({ roomId }: StudentsGridProps) => {
                   ))
                 : snapshotFeeds.map((feed) => (
                     <div
-                      key={`${feed.userId}-${feed.updatedAt}`}
+                      key={feed.feedId}
                       className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700"
                     >
                       {feed.studentName}

@@ -57,6 +57,7 @@ export default fp(async (fastify: FastifyInstance) => {
       }
 
       liveMonitoringStore.upsertFrame({
+        feedId: `${roomCode.toUpperCase()}:${roomEnrollment?.attemptId ?? 'no-attempt'}:${user.id}`,
         roomCode,
         attemptId: roomEnrollment?.attemptId ?? null,
         userId: user.id,
@@ -89,9 +90,16 @@ export default fp(async (fastify: FastifyInstance) => {
         },
         required: ['roomCode'],
       },
+      querystring: {
+        type: 'object',
+        properties: {
+          since: { type: 'number' },
+        },
+      },
     },
     handler: async (request, reply) => {
       const { roomCode } = request.params as { roomCode: string };
+      const { since } = request.query as { since?: number };
       const user = (request as any).user;
 
       if (!user || user.role !== 'teacher') {
@@ -101,12 +109,15 @@ export default fp(async (fastify: FastifyInstance) => {
         });
       }
 
-      const frames = liveMonitoringStore.getRoomFrames(roomCode);
+      const snapshot = liveMonitoringStore.getRoomFrames(roomCode, since);
 
       return {
         success: true,
         data: {
-          frames: frames.map(frame => ({
+          roomUpdatedAt: snapshot.roomUpdatedAt,
+          activeFeedIds: snapshot.activeFeedIds,
+          frames: snapshot.frames.map(frame => ({
+            feedId: frame.feedId,
             roomCode: frame.roomCode,
             attemptId: frame.attemptId,
             userId: frame.userId,
