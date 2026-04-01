@@ -30,6 +30,7 @@ let webRTCBroadcastState = {
   isProducing: false,
   error: null
 }
+let teacherBroadcastStartTimeoutId = null
 
 // ============================================================================
 // Room-Based Enrollment Support
@@ -1309,6 +1310,11 @@ function releaseExamResources () {
     frameCaptureController = null
   }
 
+  if (teacherBroadcastStartTimeoutId) {
+    clearTimeout(teacherBroadcastStartTimeoutId)
+    teacherBroadcastStartTimeoutId = null
+  }
+
   if (window.electronAPI?.stopWebRTCBroadcast) {
     window.electronAPI.stopWebRTCBroadcast().catch(error => {
       console.warn('Failed to stop WebRTC broadcast:', error)
@@ -1662,6 +1668,10 @@ async function loadExam () {
       return
     }
 
+    if (window.electronAPI?.startFullscreen) {
+      window.electronAPI.startFullscreen()
+    }
+
     startTimer(data.timerSeconds)
     const paperLoaded = await loadQuestionPaper(data.questionPaper)
 
@@ -1789,9 +1799,6 @@ async function startCamera () {
 
     video.srcObject = stream
     await video.play().catch(() => {})
-    startTeacherWebRTCBroadcast().catch(error => {
-      console.warn('[Live Monitoring] WebRTC broadcast failed to initialize:', error)
-    })
     setExamStatus('Your camera is connected. You are ready to begin.', 'info')
     frameCaptureController = startFrameCaptureWithOverlay(video)
     return true
@@ -2081,11 +2088,30 @@ function startFrameCaptureWithOverlay (video) {
   let stopped = false
   let lastSnapshotUploadAt = 0
   let snapshotUploadInFlight = false
+  let teacherBroadcastStarted = false
 
   setAIProctoringStatus({
     state: 'starting',
     detail: 'Connecting the live feed to AI monitoring...'
   })
+
+  function ensureTeacherBroadcastStarted () {
+    if (teacherBroadcastStarted) {
+      return
+    }
+
+    teacherBroadcastStarted = true
+
+    if (teacherBroadcastStartTimeoutId) {
+      clearTimeout(teacherBroadcastStartTimeoutId)
+    }
+
+    teacherBroadcastStartTimeoutId = setTimeout(() => {
+      startTeacherWebRTCBroadcast().catch(error => {
+        console.warn('[Live Monitoring] WebRTC broadcast failed to initialize:', error)
+      })
+    }, 1200)
+  }
 
   function connect () {
     if (stopped) {
@@ -2101,6 +2127,7 @@ function startFrameCaptureWithOverlay (video) {
         state: 'running',
         detail: 'Live monitoring is connected and checking the camera feed.'
       })
+      ensureTeacherBroadcastStarted()
 
       if (hasConnectedOnce) {
         reportViolation(
@@ -2269,9 +2296,11 @@ function startFrameCaptureWithOverlay (video) {
       clearInterval(intervalId)
       clearInterval(snapshotIntervalId)
       clearTimeout(reconnectTimeoutId)
+      clearTimeout(teacherBroadcastStartTimeoutId)
       intervalId = null
       snapshotIntervalId = null
       reconnectTimeoutId = null
+      teacherBroadcastStartTimeoutId = null
       resetLiveMonitoringState()
 
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2537,10 +2566,6 @@ window.addEventListener('load', async () => {
   registerExamGuards()
   registerAudioUnlockHandlers()
   await unlockAlertAudio()
-
-  if (window.electronAPI?.startFullscreen) {
-    window.electronAPI.startFullscreen()
-  }
 
   await loadExam()
 })
