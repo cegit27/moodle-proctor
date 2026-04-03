@@ -91,9 +91,8 @@ describe('ReplayPreventionService', () => {
   });
 
   it('should reject very old frames (out of order)', () => {
-    // Start at sequence 10
-    replayService.trackFrame(sessionId, 10, Date.now());
-
+    replayService.trackFrame(sessionId, 20, Date.now());
+    
     // Try to submit frame 5 (should be rejected as too old)
     const result = replayService.trackFrame(sessionId, 5, Date.now());
     expect(result).toBe(false);

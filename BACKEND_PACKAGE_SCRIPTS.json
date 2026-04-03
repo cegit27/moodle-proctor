@@ -1,0 +1,19 @@
+{
+  "description": "Updated package.json scripts for testing",
+  "_note": "Add these scripts to backend/package.json",
+  "scripts-to-add": {
+    "test": "jest --coverage",
+    "test:unit": "jest tests/unit --coverage",
+    "test:integration": "jest tests/integration --coverage",
+    "test:watch": "jest --watch",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "test:coverage": "jest --coverage && open coverage/index.html",
+    "test:coverage:report": "jest --coverage && cat coverage/coverage-summary.json",
+    "lint": "eslint src --ext .ts --fix",
+    "lint:check": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "type-check": "tsc --noEmit",
+    "security:audit": "npm audit --audit-level=moderate"
+  }
+}

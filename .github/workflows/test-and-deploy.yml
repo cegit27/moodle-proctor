@@ -1,0 +1,504 @@
+# @file .github/workflows/test-and-deploy.yml
+# Main CI/CD Pipeline for Testing and Deployment
+
+name: CI/CD - Test and Deploy
+
+on:
+  push:
+    branches: [ main, develop, staging ]
+  pull_request:
+    branches: [ main, develop, staging ]
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: moodle-proctor-backend
+  FRONTEND_IMAGE: moodle-proctor-frontend
+  AI_IMAGE: moodle-proctor-ai
+
+jobs:
+  # ============================================================================
+  # Setup & Initialization
+  # ============================================================================
+
+  setup:
+    name: Setup & Install Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          npm ci
+      
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Install Python Dependencies
+        run: |
+          cd ai_proctoring
+          pip install -r requirements.txt
+
+  # ============================================================================
+  # Backend Tests
+  # ============================================================================
+
+  backend-tests:
+    name: Backend Tests (Unit & Integration)
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: moodle_proctor_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Setup Backend
+        run: |
+          cd backend
+          npm ci
+      
+      - name: Run Linter
+        run: |
+          cd backend
+          npm run lint --fix
+      
+      - name: Build TypeScript
+        run: |
+          cd backend
+          npm run build
+      
+      - name: Run Unit Tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/moodle_proctor_test
+        run: |
+          cd backend
+          npm run test:unit -- --coverage --collectCoverageFrom='src/**/*.ts'
+      
+      - name: Run Integration Tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/moodle_proctor_test
+        run: |
+          cd backend
+          npm run test:integration
+      
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: backend
+          fail_ci_if_error: false
+      
+      - name: Archive Coverage Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+
+  # ============================================================================
+  # Frontend Tests
+  # ============================================================================
+
+  frontend-tests:
+    name: Frontend Tests (Unit & Component)
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Setup Frontend
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run Linter
+        run: |
+          cd frontend
+          npm run lint
+      
+      - name: Build Next.js
+        run: |
+          cd frontend
+          npm run build
+      
+      - name: Run Component Tests
+        run: |
+          cd frontend
+          npm run test -- --coverage
+      
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # AI Proctoring Tests (Python)
+  # ============================================================================
+
+  ai-tests:
+    name: AI Proctoring Tests (Python)
+    needs: setup
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Dependencies
+        run: |
+          cd ai_proctoring
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+      
+      - name: Run Linting (Flake8)
+        run: |
+          pip install flake8
+          flake8 ai_proctoring --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 ai_proctoring --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+      
+      - name: Run Type Checking (Mypy)
+        continue-on-error: true
+        run: |
+          pip install mypy
+          mypy ai_proctoring --ignore-missing-imports
+      
+      - name: Run Unit Tests
+        run: |
+          cd ai_proctoring
+          pytest tests/unit -v --cov --cov-report=xml --cov-report=html
+      
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./ai_proctoring/coverage.xml
+          flags: ai
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # End-to-End Tests (Playwright)
+  # ============================================================================
+
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    needs: [backend-tests, frontend-tests]
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: moodle_proctor_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install All Dependencies
+        run: |
+          npm ci
+          cd backend && npm ci && cd ..
+          cd frontend && npm ci && cd ..
+      
+      - name: Install Playwright Browsers
+        run: |
+          npx playwright install --with-deps chromium firefox webkit
+      
+      - name: Build Backend & Frontend
+        env:
+          NODE_ENV: test
+        run: |
+          cd backend && npm run build && cd ..
+          cd frontend && npm run build && cd ..
+      
+      - name: Start Backend Server
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/moodle_proctor_test
+        run: |
+          cd backend
+          npm start &
+          sleep 5
+      
+      - name: Start Frontend Dev Server
+        timeout-minutes: 10
+        run: |
+          cd frontend
+          npm run dev &
+          sleep 5
+      
+      - name: Run E2E Tests
+        env:
+          BASE_URL: http://localhost:3000
+          BACKEND_URL: http://localhost:5000
+        run: |
+          npm run test:e2e -- --reporter=html --reporter=junit
+      
+      - name: Upload E2E Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-results
+          path: test-results/
+      
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+  # ============================================================================
+  # Security Scanning
+  # ============================================================================
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+      
+      - name: Dependency Check (Backend)
+        run: |
+          cd backend
+          npm audit --audit-level=moderate || true
+      
+      - name: Dependency Check (Frontend)
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate || true
+      
+      - name: Dependency Check (Python)
+        run: |
+          cd ai_proctoring
+          pip install safety
+          safety check --json || true
+
+  # ============================================================================
+  # Code Quality Analysis
+  # ============================================================================
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
+
+  # ============================================================================
+  # Build Docker Images
+  # ============================================================================
+
+  build-images:
+    name: Build Docker Images
+    needs: [backend-tests, frontend-tests, ai-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}
+      
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.FRONTEND_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}
+      
+      - name: Build and Push AI Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./ai_proctoring
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.AI_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.AI_IMAGE }}:${{ github.sha }}
+
+  # ============================================================================
+  # Status Report
+  # ============================================================================
+
+  status-report:
+    name: Test Status Report
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, ai-tests, e2e-tests]
+    if: always()
+    
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Generate Summary
+        run: |
+          echo "# CI/CD Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend Tests: ${{ needs.backend-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend Tests: ${{ needs.frontend-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- AI Tests: ${{ needs.ai-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E Tests: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "⚠️ Some tests failed. Please check the logs above for details."
+
+  # ============================================================================
+  # Deployment (Optional - on main branch)
+  # ============================================================================
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, ai-tests, e2e-tests, build-images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy Backend
+        run: |
+          echo "Deploying backend..."
+          # Add your deployment script here
+      
+      - name: Deploy Frontend
+        run: |
+          echo "Deploying frontend..."
+          # Add your deployment script here
+      
+      - name: Deploy AI Service
+        run: |
+          echo "Deploying AI service..."
+          # Add your deployment script here
+      
+      - name: Run Post-Deployment Tests
+        run: |
+          echo "Running post-deployment verification..."
+          # Add your post-deployment tests here
