@@ -691,3 +691,6 @@ app.on('before-quit', () => {
   stopExamMonitoring()
   stopAiProctoringService()
 })
+ipcMain.on("open-scanner", () => {
+  shell.openExternal("http://localhost:3000/scan");
+});

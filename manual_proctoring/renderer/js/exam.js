@@ -1685,7 +1685,7 @@ async function loadExam () {
   }
 }
 
-async function submitExam (reason = 'manual_submit') {
+/*async function submitExam (reason = 'manual_submit') {
   if (examSubmitted || isSubmitting) {
     return
   }
@@ -1728,6 +1728,74 @@ async function submitExam (reason = 'manual_submit') {
       clearReconnectCheck()
     }
     finishExamUI(reason)
+  } catch (error) {
+    console.error('Submit error:', error)
+    markBackendDisconnected(
+      'We could not submit your exam right now. Trying to reconnect...'
+    )
+  } finally {
+    isSubmitting = false
+    if (!backendDisconnected) {
+      updateSubmissionButton(
+        examSubmitted,
+        examSubmitted ? 'Submitted' : 'Submit Exam'
+      )
+    }
+  }
+}*/
+async function submitExam (reason = 'manual_submit') {
+  if (examSubmitted || isSubmitting) {
+    return
+  }
+
+  isSubmitting = true
+  updateSubmissionButton(true, 'Submitting...')
+  setExamStatus('Submitting your exam. Please wait...', 'info', {
+    force: true,
+    clearPinnedWarning: true
+  })
+
+  try {
+    const response = await fetchWithSessionOrRoom(`${API_BASE_URL}/api/exam/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason })
+    })
+
+    if (!response) {
+      markBackendDisconnected(
+        'We could not reach the exam server to submit your exam. Trying to reconnect...'
+      )
+      return
+    }
+
+    const data = await response.json()
+
+    if (!response.ok || !data.success) {
+      setExamStatus(
+        data.message || 'We could not submit your exam right now.',
+        'error'
+      )
+      return
+    }
+
+    currentAttempt = data.attempt
+    if (backendDisconnected) {
+      clearReconnectCheck()
+    }
+    
+    setTimeout(() => {
+  window.open("http://localhost:3000/scan", "_blank");
+    }, 500);
+
+   finishExamUI(reason);
+    
+    // ✅ ADD THIS BLOCK (SCANNER TRIGGER)
+    const { ipcRenderer } = require("electron");
+    ipcRenderer.send("open-scanner");
+
   } catch (error) {
     console.error('Submit error:', error)
     markBackendDisconnected(
