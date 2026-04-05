@@ -559,7 +559,8 @@ function createWindow () {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -691,6 +692,11 @@ app.on('before-quit', () => {
   stopExamMonitoring()
   stopAiProctoringService()
 })
-ipcMain.on("open-scanner", () => {
-  shell.openExternal("http://localhost:3000/scan");
-});
+
+// Open scanner page inside the existing main window
+ipcMain.on('open-scanner', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return
+  }
+  mainWindow.loadURL('http://localhost:3000/scan?source=electron&token=exam-complete')
+})

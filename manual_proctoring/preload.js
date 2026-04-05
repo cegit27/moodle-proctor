@@ -16,7 +16,8 @@ const IPC_CHANNELS = {
   safeStorageDecryptString: 'safe-storage-decrypt-string',
   fullscreenExited: 'fullscreen-exited',
   networkAppBlocked: 'network-app-blocked',
-  aiProctoringStatus: 'ai-proctoring-status'
+  aiProctoringStatus: 'ai-proctoring-status',
+  openScanner: 'open-scanner'
 }
 
 function send(channel, ...args) {
@@ -520,5 +521,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAIProctoringStatus: callback =>
     ipcRenderer.on(IPC_CHANNELS.aiProctoringStatus, (_, status) =>
       callback(status)
-    )
+    ),
+  openScanner: () => send(IPC_CHANNELS.openScanner)
 })

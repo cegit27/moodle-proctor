@@ -14,10 +14,13 @@ export default function ScanPage() {
 
   // Guard: redirect if no session
   useEffect(() => {
-    if (!sessionToken) {
-      router.replace('/');
-    }
-  }, [sessionToken, router]);
+  const params = new URLSearchParams(window.location.search)
+  const isFromElectron = params.get('source') === 'electron' && params.get('token') === 'exam-complete'
+
+  if (!sessionToken && !isFromElectron) {
+    router.replace('/')
+  }
+}, [sessionToken, router])
 
   if (!sessionToken) return null;
 

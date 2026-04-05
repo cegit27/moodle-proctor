@@ -940,88 +940,6 @@ function renderWarningHistory (violations = []) {
 
   if (recentViolations.length === 0) {
     historyList.innerHTML =
-      '<li style="color: #475467; font-size: 14px;">No warnings recorded yet.</li>'
-    return
-  }
-
-  historyList.innerHTML = recentViolations
-    .map(violation => {
-      const warningCopy = getUserFacingWarningCopy(violation)
-      const detail = escapeHtml(warningCopy.detail)
-      const type = escapeHtml(warningCopy.title)
-      const timestamp = escapeHtml(
-        formatViolationTimestamp(violation.createdAt)
-      )
-      const severityLabel = escapeHtml(
-        violation.severity === 'info' ? 'Info' : 'Warning'
-      )
-
-      return `
-        <li style="padding: 12px; border: 1px solid #eaecf0; border-radius: 10px; background: #f8fafc;">
-          <div style="font-size: 13px; color: #475467; margin-bottom: 6px;">${timestamp} · ${severityLabel}</div>
-          <div style="font-weight: 700; color: #101828; margin-bottom: 4px;">${type}</div>
-          <div style="font-size: 14px; color: #344054; line-height: 1.4;">${detail}</div>
-        </li>
-      `
-    })
-    .join('')
-}
-
-function renderQuestionSummary (questions = []) {
-  const questionList = document.getElementById('questionSummaryList')
-
-  if (!questionList) {
-    return
-  }
-
-  if (!Array.isArray(questions) || questions.length === 0) {
-    questionList.innerHTML =
-      '<li style="color: #475467; font-size: 14px;">No question summary is available.</li>'
-    return
-  }
-
-  questionList.innerHTML = questions
-    .map(question => {
-      const questionText = escapeHtml(question.question || 'Untitled question')
-      const options = Array.isArray(question.options) ? question.options : []
-
-      const optionMarkup =
-        options.length === 0
-          ? '<li style="color: #475467; font-size: 13px;">No options listed.</li>'
-          : options
-              .map(
-                option =>
-                  `<li style="font-size: 13px; color: #344054;">${escapeHtml(
-                    option
-                  )}</li>`
-              )
-              .join('')
-
-      return `
-        <li style="padding: 12px; border: 1px solid #eaecf0; border-radius: 10px; background: #f8fafc;">
-          <div style="font-weight: 700; color: #101828; margin-bottom: 8px;">${questionText}</div>
-          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px;">
-            ${optionMarkup}
-          </ul>
-        </li>
-      `
-    })
-    .join('')
-}
-
-function renderWarningHistory (violations = []) {
-  const historyList = document.getElementById('warningHistoryList')
-
-  if (!historyList) {
-    return
-  }
-
-  const recentViolations = Array.isArray(violations)
-    ? violations.slice(0, 5)
-    : []
-
-  if (recentViolations.length === 0) {
-    historyList.innerHTML =
       '<li class="empty-list-message">No warnings recorded yet.</li>'
     return
   }
@@ -1436,6 +1354,7 @@ function finishExamUI (reason) {
   )
 }
 
+
 async function reportViolation (type, detail, severity = 'warning') {
   if (!examStarted || examSubmitted) {
     return
@@ -1689,64 +1608,6 @@ async function loadExam () {
   }
 }
 
-/*async function submitExam (reason = 'manual_submit') {
-  if (examSubmitted || isSubmitting) {
-    return
-  }
-
-  isSubmitting = true
-  updateSubmissionButton(true, 'Submitting...')
-  setExamStatus('Submitting your exam. Please wait...', 'info', {
-    force: true,
-    clearPinnedWarning: true
-  })
-
-  try {
-    const response = await fetchWithSessionOrRoom(`${API_BASE_URL}/api/exam/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ reason })
-    })
-
-    if (!response) {
-      markBackendDisconnected(
-        'We could not reach the exam server to submit your exam. Trying to reconnect...'
-      )
-      return
-    }
-
-    const data = await response.json()
-
-    if (!response.ok || !data.success) {
-      setExamStatus(
-        data.message || 'We could not submit your exam right now.',
-        'error'
-      )
-      return
-    }
-
-    currentAttempt = data.attempt
-    if (backendDisconnected) {
-      clearReconnectCheck()
-    }
-    finishExamUI(reason)
-  } catch (error) {
-    console.error('Submit error:', error)
-    markBackendDisconnected(
-      'We could not submit your exam right now. Trying to reconnect...'
-    )
-  } finally {
-    isSubmitting = false
-    if (!backendDisconnected) {
-      updateSubmissionButton(
-        examSubmitted,
-        examSubmitted ? 'Submitted' : 'Submit Exam'
-      )
-    }
-  }
-}*/
 async function submitExam (reason = 'manual_submit') {
   if (examSubmitted || isSubmitting) {
     return
@@ -1786,20 +1647,18 @@ async function submitExam (reason = 'manual_submit') {
     }
 
     currentAttempt = data.attempt
+
     if (backendDisconnected) {
       clearReconnectCheck()
     }
-    
-    setTimeout(() => {
-  window.open("http://localhost:3000/scan", "_blank");
-    }, 500);
 
-   finishExamUI(reason);
-    
-    // ✅ ADD THIS BLOCK (SCANNER TRIGGER)
-    const { ipcRenderer } = require("electron");
-    ipcRenderer.send("open-scanner");
-
+    // Send the IPC message BEFORE finishExamUI destroys the DOM
+    if (window.electronAPI?.openScanner) {
+      window.electronAPI.openScanner()
+    } else {
+      // Fallback: render completion screen if scanner bridge is unavailable
+      finishExamUI(reason)
+    }
   } catch (error) {
     console.error('Submit error:', error)
     markBackendDisconnected(
