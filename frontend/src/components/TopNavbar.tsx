@@ -61,7 +61,7 @@ export const TopNavbar = () => {
         <div className="flex flex-wrap gap-2 text-sm">
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-700">
             <span className={`h-2 w-2 rounded-full ${error ? "bg-red-500" : "bg-emerald-500"}`} />
-            {error ? "Connection issue" : isLoading ? "Syncing" : "Online"}
+            {error ? "Backend issue" : isLoading ? "Checking backend" : "Backend connected"}
           </span>
           <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-slate-700">
             <FiActivity className="h-4 w-4" />
