@@ -264,8 +264,6 @@ export async function sendGradeForAttempt(
       throw new Error(`Exam attempt not found: ${attemptId}`);
     }
 
-    const attempt = result.rows[0];
-
     // TODO: Store lis_outcome_service_url and lis_result_sourcedid in database
     // For now, we need to get these from the original LTI launch context
     // This is a limitation of the current schema - we need to add these columns

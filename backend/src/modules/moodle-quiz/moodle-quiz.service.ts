@@ -9,9 +9,7 @@ import logger from '../../config/logger';
 import {
   MoodleQuiz,
   MoodleQuestion,
-  QuizSyncResult,
-  moodleQuizSchema,
-  moodleQuestionSchema
+  QuizSyncResult
 } from './moodle-quiz.schema';
 
 // ============================================================================
@@ -574,6 +572,73 @@ export async function getQuizByRoomCode(
   } catch (error: any) {
     logger.error('Failed to get quiz by room code', {
       roomCode,
+      error: error.message
+    });
+    throw error;
+  }
+}
+
+export async function getQuizByExamMapping(
+  pg: Pool,
+  moodleCourseId: number,
+  moodleCourseModuleId: number
+): Promise<MoodleQuiz | null> {
+  try {
+    const result = await pg.query(
+      `SELECT
+        mq.id,
+        mq.moodle_quiz_id as "id",
+        mq.course_id as "course",
+        mq.course_module_id as "courseModule",
+        mq.name,
+        mq.intro,
+        mq.time_open as "timeOpen",
+        mq.time_close as "timeClose",
+        mq.time_limit as "timeLimit"
+      FROM moodle_quizzes mq
+      WHERE mq.course_id = $1
+      AND mq.course_module_id = $2
+      ORDER BY mq.updated_at DESC
+      LIMIT 1`,
+      [moodleCourseId, moodleCourseModuleId]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const quiz = result.rows[0];
+    const questionsResult = await pg.query(
+      `SELECT
+        moodle_question_id as "moodleQuestionId",
+        name,
+        question_text as "questionText",
+        default_mark as "defaultMark",
+        qtype,
+        category,
+        options
+      FROM moodle_questions
+      WHERE quiz_id = $1
+      ORDER BY id ASC`,
+      [quiz.id]
+    );
+
+    return {
+      ...quiz,
+      questions: questionsResult.rows.map(row => ({
+        id: row.moodleQuestionId,
+        name: row.name,
+        questionText: row.questionText,
+        defaultMark: row.defaultMark,
+        qtype: row.qtype,
+        category: row.category,
+        options: typeof row.options === 'string' ? JSON.parse(row.options) : row.options
+      }))
+    };
+  } catch (error: any) {
+    logger.error('Failed to get quiz by exam mapping', {
+      moodleCourseId,
+      moodleCourseModuleId,
       error: error.message
     });
     throw error;

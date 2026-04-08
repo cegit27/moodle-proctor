@@ -95,7 +95,7 @@ export async function createApp () {
   })
 
   // Form body parser (for LTI launch requests)
-  app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (req, body, done) => {
+  app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (_request, body, done) => {
     try {
       const parsed = parseQueryString(body.toString())
       done(null, parsed)

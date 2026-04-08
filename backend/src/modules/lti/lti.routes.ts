@@ -14,6 +14,7 @@ import {
   sendGradeForAttempt
 } from './lti-outcomes.service';
 import logger from '../../config/logger';
+import { UserRole } from '../../types';
 
 // ============================================================================
 // Routes Plugin
@@ -202,11 +203,14 @@ export default fp(async (fastify: FastifyInstance) => {
 
       const tokenPayload = {
         userId: userId || 0,
+        moodleUserId: userId || 0,
+        username: ltiContext.userEmail || `lti-user-${userId || 0}`,
+        email: ltiContext.userEmail || `lti-user-${userId || 0}@placeholder.local`,
         roomCode: roomCode,
         ltiLaunch: true,
         contextId: ltiContext.contextKey,
         resourceId: ltiContext.resourceId,
-        role: 'student',
+        role: UserRole.STUDENT,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
       };

@@ -7,12 +7,13 @@ import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
 import {
   fetchQuizzesFromMoodle,
-  fetchQuizQuestionsFromMoodle,
   syncQuizToDatabase,
   getQuizByLtiContextKey,
   getQuizByRoomCode
 } from './moodle-quiz.service';
 import logger from '../../config/logger';
+import { authMiddleware, requireTeacher } from '../../middleware/auth.middleware';
+import jwtService from '../auth/jwt.service';
 
 // ============================================================================
 // Routes Plugin
@@ -26,17 +27,21 @@ export default fp(async (fastify: FastifyInstance) => {
   // Requires Moodle web service token (from user session)
   // ==========================================================================
 
-  fastify.post('/api/moodle-quiz/sync', async (request, reply) => {
+  fastify.post('/api/moodle-quiz/sync', {
+    onRequest: [authMiddleware, requireTeacher]
+  }, async (request, reply) => {
     try {
-      // @ts-ignore - JWT payload attached by auth middleware
-      const user = request.user;
+      const user = (request as any).user;
+      const tokenPayload = (request as any).tokenPayload as { moodleToken?: string } | undefined;
 
-      if (!user || !user.moodleToken) {
+      if (!user || !tokenPayload?.moodleToken) {
         return reply.code(401).send({
           success: false,
           error: 'Moodle token not found. Please login first.'
         });
       }
+
+      const moodleToken = jwtService.decryptMoodleToken(tokenPayload.moodleToken);
 
       const body = request.body as {
         courseId: number;
@@ -53,14 +58,14 @@ export default fp(async (fastify: FastifyInstance) => {
       }
 
       logger.info('Syncing quiz from Moodle', {
-        userId: user.userId,
+        userId: user.id,
         courseId: body.courseId,
         quizId: body.quizId
       });
 
       // Fetch quiz from Moodle
       const quizzes = await fetchQuizzesFromMoodle(
-        user.moodleToken,
+        moodleToken,
         body.courseId,
         body.quizId
       );

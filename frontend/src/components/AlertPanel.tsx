@@ -1,19 +1,19 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiAlertTriangle, FiMonitor, FiSmartphone } from "react-icons/fi";
 
-import { useAttempts } from "@/hooks/useTeacherData";
+import { backendAPI, type RoomMonitoringStudent } from "@/lib/backend";
 import {
   formatTimeOnly,
   getAlertSeverity,
-  getDisplayName,
   getRiskStatus
 } from "@/lib/dashboard";
 import { StatusBadge } from "./StatusBadge";
 
 interface Props {
   roomId?: number;
-  apiUrl?: string;
+  roomLabel?: string;
 }
 
 const alertIcon = (severity: "low" | "medium" | "high") => {
@@ -48,34 +48,78 @@ const severityBorder = (severity: "low" | "medium" | "high") => {
   return "border-blue-200/80";
 };
 
-export const AlertPanel = (_props: Props) => {
-  const { attempts, isLoading, error } = useAttempts({
-    limit: 25
-  });
+export const AlertPanel = ({ roomId, roomLabel }: Props) => {
+  const [students, setStudents] = useState<RoomMonitoringStudent[]>([]);
+  const [isLoading, setIsLoading] = useState(Boolean(roomId));
+  const [error, setError] = useState<Error | null>(null);
 
-  const attentionQueue = attempts
-    .filter((attempt) => attempt.violationCount > 0)
-    .sort((a, b) => {
-      if (b.violationCount !== a.violationCount) {
-        return b.violationCount - a.violationCount;
+  const fetchAlerts = useCallback(async () => {
+    if (!roomId) {
+      setStudents([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await backendAPI.getRoomStudents(roomId);
+      if (response.success) {
+        setStudents(response.data);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to load room alerts"));
+      setStudents([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [roomId]);
 
-      return new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime();
-    })
-    .slice(0, 8)
-    .map((attempt) => ({
-      id: attempt.id,
-      studentName: getDisplayName(attempt),
-      studentLabel: attempt.email,
-      severity: getAlertSeverity(attempt.violationCount),
-      message:
-        attempt.violationCount === 1
-          ? "1 proctoring event requires review."
-          : `${attempt.violationCount} proctoring events require review.`,
-      timestamp: formatTimeOnly(attempt.submittedAt || attempt.startedAt),
-      examName: attempt.examName,
-      riskStatus: getRiskStatus(attempt.violationCount)
-    }));
+  useEffect(() => {
+    void fetchAlerts();
+
+    if (!roomId) {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      void fetchAlerts();
+    }, 2500);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [fetchAlerts, roomId]);
+
+  const attentionQueue = useMemo(
+    () =>
+      students
+        .filter((student) => student.warningCount > 0)
+        .sort((a, b) => {
+          if (b.warningCount !== a.warningCount) {
+            return b.warningCount - a.warningCount;
+          }
+
+          return new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime();
+        })
+        .slice(0, 8)
+        .map((student) => ({
+          id: student.enrollmentId,
+          studentName: student.studentName,
+          studentLabel: student.studentEmail,
+          severity: getAlertSeverity(student.warningCount),
+          message:
+            student.warningCount === 1
+              ? "1 room warning requires review."
+              : `${student.warningCount} room warnings require review.`,
+          timestamp: formatTimeOnly(student.submittedAt || student.startedAt),
+          examName: roomLabel || "Current room",
+          riskStatus: getRiskStatus(student.warningCount)
+        })),
+    [roomLabel, students]
+  );
 
   const highPriority = attentionQueue.filter((alert) => alert.severity === "high").length;
   const mediumPriority = attentionQueue.filter((alert) => alert.severity === "medium").length;
@@ -90,8 +134,9 @@ export const AlertPanel = (_props: Props) => {
               Alerts waiting for review
             </h2>
             <p className="section-copy mt-3 max-w-2xl">
-              Real attempts with suspicious events surface here first so teachers can triage in the
-              right order.
+              {roomLabel
+                ? `Warnings for ${roomLabel} surface here first so teachers can triage one room at a time.`
+                : "Select an active room to see its warning queue."}
             </p>
           </div>
 
@@ -119,7 +164,13 @@ export const AlertPanel = (_props: Props) => {
           </div>
         ) : null}
 
-        {!error &&
+        {!error && !roomId && (
+          <div className="empty-state">
+            No room selected yet.
+          </div>
+        )}
+
+        {!error && roomId &&
           attentionQueue.map((alert) => (
             <article
               key={alert.id}
@@ -156,13 +207,13 @@ export const AlertPanel = (_props: Props) => {
             </article>
           ))}
 
-        {!error && !isLoading && attentionQueue.length === 0 && (
+        {!error && roomId && !isLoading && attentionQueue.length === 0 && (
           <div className="empty-state">
-            No attempts with violations are waiting for review right now.
+            No room warnings are waiting for review right now.
           </div>
         )}
 
-        {isLoading && (
+        {roomId && isLoading && (
           <div className="empty-state">
             Loading incident queue...
           </div>

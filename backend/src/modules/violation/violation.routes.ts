@@ -6,7 +6,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createViolationService } from './violation.service';
-import { authMiddleware } from '../../middleware/auth.middleware';
+import { authMiddleware, requireStudent } from '../../middleware/auth.middleware';
 import type { ReportViolationRequest } from './violation.schema';
 import {
   getManualSessionFromRequest,
@@ -27,7 +27,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.post('/api/exam/violations', {
-    onRequest: [authMiddleware], // TODO: Add role check middleware and rate limiting
+    onRequest: [authMiddleware, requireStudent],
     config: {
       rateLimit: {
         max: 100,
@@ -166,7 +166,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.get('/api/exam/:attemptId/violations', {
-    onRequest: [authMiddleware],
+    onRequest: [authMiddleware, requireStudent],
     schema: {
       params: {
         type: 'object',
@@ -208,7 +208,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.get('/api/exam/:attemptId/violations/check', {
-    onRequest: [authMiddleware],
+    onRequest: [authMiddleware, requireStudent],
     schema: {
       params: {
         type: 'object',

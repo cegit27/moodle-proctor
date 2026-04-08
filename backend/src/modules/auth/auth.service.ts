@@ -6,7 +6,6 @@
 import { FastifyInstance } from 'fastify';
 import logger from '../../config/logger';
 import moodleService from './moodle.service';
-import { inferMoodleRoleFromIdentity } from './moodle.service';
 import jwtService from './jwt.service';
 import type { User } from '../../types';
 import { UserRole } from '../../types';
@@ -106,17 +105,6 @@ class AuthService {
 
       if (!user) {
         throw new UnauthorizedError('User not found');
-      }
-
-      if (
-        user.role !== UserRole.TEACHER &&
-        inferMoodleRoleFromIdentity({ username: user.username, email: user.email }) === 'teacher'
-      ) {
-        const upgradedUser = await this.updateUserRole(fastify, user.id, UserRole.TEACHER);
-
-        if (upgradedUser) {
-          return upgradedUser;
-        }
       }
 
       return user;
@@ -291,23 +279,6 @@ class AuthService {
       'UPDATE users SET last_login_at = NOW() WHERE id = $1',
       [userId]
     );
-  }
-
-  private async updateUserRole(
-    fastify: FastifyInstance,
-    userId: number,
-    role: UserRole
-  ): Promise<User | null> {
-    const result = await fastify.pg.query(
-      `UPDATE users
-       SET role = $1,
-           updated_at = NOW()
-       WHERE id = $2
-       RETURNING *`,
-      [role, userId]
-    );
-
-    return result.rows[0] ? (result.rows[0] as User) : null;
   }
 }
 

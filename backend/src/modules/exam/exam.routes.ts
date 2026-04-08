@@ -6,7 +6,7 @@
 import fp from 'fastify-plugin';
 import { FastifyInstance } from 'fastify';
 import { createExamService } from './exam.service';
-import { authMiddleware } from '../../middleware/auth.middleware';
+import { authMiddleware, requireStudent, requireTeacher } from '../../middleware/auth.middleware';
 import {
   getManualSessionFromRequest,
   isManualProctoringRequest
@@ -32,7 +32,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.get('/api/exams', {
-    onRequest: [authMiddleware],
+    onRequest: [authMiddleware, requireTeacher],
     handler: async (request, reply) => {
       // @ts-ignore
       const userId = request.user.id;
@@ -69,7 +69,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.get('/api/exam/:id', {
-    onRequest: [authMiddleware],
+    onRequest: [authMiddleware, requireStudent],
     schema: {
       params: {
         type: 'object',
@@ -104,7 +104,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.post('/api/exam/start', {
-    onRequest: [authMiddleware], // TODO: Add role check middleware
+    onRequest: [authMiddleware, requireStudent],
     handler: async (request, reply) => {
       // @ts-ignore
       const userId = request.user.id;
@@ -229,7 +229,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.post('/api/exam/resume', {
-    onRequest: [authMiddleware], // TODO: Add role check middleware
+    onRequest: [authMiddleware, requireStudent],
     schema: {
       body: {
         type: 'object',
@@ -271,7 +271,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.post('/api/exam/submit', {
-    onRequest: [authMiddleware], // TODO: Add role check middleware
+    onRequest: [authMiddleware, requireStudent],
     schema: {
       body: {
         type: 'object',
@@ -376,7 +376,7 @@ export default fp(async (fastify: FastifyInstance) => {
   // ==========================================================================
 
   fastify.get('/api/exam/:id/questions', {
-    onRequest: [authMiddleware],
+    onRequest: [authMiddleware, requireStudent],
     schema: {
       params: {
         type: 'object',

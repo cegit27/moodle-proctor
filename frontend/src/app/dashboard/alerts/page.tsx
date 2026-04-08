@@ -1,32 +1,60 @@
 "use client";
 
-import { FiAlertTriangle, FiShield, FiUsers } from "react-icons/fi";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FiAlertTriangle, FiLoader, FiShield, FiUsers } from "react-icons/fi";
 
 import { AlertPanel } from "@components/AlertPanel";
-import { useAttempts } from "@/hooks/useTeacherData";
+import { useActiveRooms } from "@/hooks/useTeacherData";
+
+const LAST_ROOM_STORAGE_KEY = "teacher-monitoring:last-room-code";
 
 export default function AlertsPage() {
-  const { attempts, isLoading } = useAttempts({
-    limit: 25
-  });
+  const { rooms, isLoading } = useActiveRooms();
+  const [currentRoomCode, setCurrentRoomCode] = useState<string | undefined>(undefined);
+  const hasHydratedRoom = useRef(false);
 
-  const flagged = attempts.filter((attempt) => attempt.violationCount > 0);
-  const highPriority = attempts.filter((attempt) => attempt.violationCount >= 5).length;
+  useEffect(() => {
+    if (typeof window === "undefined" || hasHydratedRoom.current || isLoading) {
+      return;
+    }
+
+    hasHydratedRoom.current = true;
+
+    const storedRoomCode = window.localStorage.getItem(LAST_ROOM_STORAGE_KEY);
+    const initialRoom = rooms.find((room) => room.roomCode === storedRoomCode) ?? rooms[0];
+
+    if (initialRoom) {
+      setCurrentRoomCode(initialRoom.roomCode);
+    }
+  }, [isLoading, rooms]);
+
+  useEffect(() => {
+    if (!currentRoomCode || typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(LAST_ROOM_STORAGE_KEY, currentRoomCode);
+  }, [currentRoomCode]);
+
+  const currentRoom = useMemo(
+    () => rooms.find((room) => room.roomCode === currentRoomCode) ?? rooms[0] ?? null,
+    [currentRoomCode, rooms]
+  );
 
   const stats = [
     {
-      label: "Flagged attempts",
-      value: flagged.length,
+      label: "Active rooms",
+      value: rooms.length,
       icon: <FiAlertTriangle className="h-5 w-5" />
     },
     {
-      label: "High priority",
-      value: highPriority,
+      label: "Selected room",
+      value: currentRoom?.roomCode || "-",
       icon: <FiShield className="h-5 w-5" />
     },
     {
-      label: "Reviewed population",
-      value: attempts.length,
+      label: "Students in room",
+      value: currentRoom?.studentCount ?? 0,
       icon: <FiUsers className="h-5 w-5" />
     }
   ];
@@ -41,8 +69,7 @@ export default function AlertsPage() {
               Work the queue from highest signal first
             </h2>
             <p className="section-copy mt-3">
-              This page strips the workflow down to alert pressure and the actual review queue so
-              triage stays fast.
+              Alerts are now tied to one active room so the queue matches the live monitoring wall.
             </p>
           </div>
 
@@ -64,7 +91,44 @@ export default function AlertsPage() {
         </div>
       </article>
 
-      <AlertPanel />
+      <section className="surface-panel section-card">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-950">Room focus</h3>
+            <p className="mt-1 text-sm text-slate-600">Choose which room this alert queue should follow.</p>
+          </div>
+
+          {isLoading ? (
+            <div className="inline-flex items-center gap-2 text-sm text-slate-600">
+              <FiLoader className="h-4 w-4 animate-spin" />
+              Loading rooms...
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {rooms.map((room) => {
+                const active = room.roomCode === currentRoom?.roomCode;
+
+                return (
+                  <button
+                    key={room.id}
+                    type="button"
+                    onClick={() => setCurrentRoomCode(room.roomCode)}
+                    className={`rounded-full border px-3 py-2 text-sm ${
+                      active
+                        ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    {room.roomCode}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <AlertPanel roomId={currentRoom?.id} roomLabel={currentRoom?.examName} />
     </section>
   );
 }

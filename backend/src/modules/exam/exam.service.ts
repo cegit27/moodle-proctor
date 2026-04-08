@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { Pool } from 'pg';
+import path from 'path';
 import type {
   ExamDetails,
   ExamAttempt,
@@ -15,6 +16,7 @@ import type {
   AttemptRow
 } from './exam.schema';
 import { createStudentService } from '../student/student.service';
+import { getQuizByExamMapping } from '../moodle-quiz/moodle-quiz.service';
 
 export class ExamService {
   constructor(private pg: Pool) {
@@ -306,10 +308,10 @@ export class ExamService {
    * Get question summary for an exam
    */
   async getQuestionsSummary(examId: number, _userId: number): Promise<QuestionsSummaryResponse> {
-    // For now, return a placeholder
-    // In production, this would fetch from Moodle or question bank
     const examResult = await this.pg.query<ExamRow>(
-      'SELECT * FROM exams WHERE id = $1',
+      `SELECT id, moodle_course_id, moodle_course_module_id, exam_name, course_name,
+       duration_minutes, max_warnings, question_paper_path
+       FROM exams WHERE id = $1`,
       [examId]
     );
 
@@ -318,15 +320,53 @@ export class ExamService {
     }
 
     const exam = examResult.rows[0];
+    const syncedQuiz = await getQuizByExamMapping(
+      this.pg,
+      exam.moodle_course_id,
+      exam.moodle_course_module_id
+    ).catch(() => null);
+
+    if (syncedQuiz && syncedQuiz.questions.length > 0) {
+      const questions = syncedQuiz.questions.map((question, index) => ({
+        id: question.id,
+        questionNumber: index + 1,
+        text: this.toPlainText(question.questionText || question.name),
+        type: question.qtype,
+        marks: question.defaultMark || 1
+      }));
+
+      return {
+        success: true,
+        data: {
+          examId: exam.id,
+          examName: exam.exam_name,
+          totalQuestions: questions.length,
+          totalMarks: questions.reduce((sum, question) => sum + question.marks, 0),
+          questions
+        }
+      };
+    }
+
+    const derivedQuestionPaperLabel = exam.question_paper_path
+      ? this.toPlainText(path.basename(exam.question_paper_path).replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '))
+      : '';
 
     return {
       success: true,
       data: {
         examId: exam.id,
         examName: exam.exam_name,
-        totalQuestions: 0, // Would be fetched from Moodle
+        totalQuestions: derivedQuestionPaperLabel ? 1 : 0,
         totalMarks: 0,
-        questions: []
+        questions: derivedQuestionPaperLabel
+          ? [{
+              id: exam.id,
+              questionNumber: 1,
+              text: `${derivedQuestionPaperLabel} (question paper PDF)`,
+              type: 'document',
+              marks: 0
+            }]
+          : []
       }
     };
   }
@@ -361,6 +401,15 @@ export class ExamService {
       violationCount: row.violation_count,
       submissionReason: row.submission_reason
     };
+  }
+
+  private toPlainText(value: string): string {
+    return value
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   /**

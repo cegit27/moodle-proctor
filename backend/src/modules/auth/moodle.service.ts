@@ -28,11 +28,13 @@ interface MoodleSiteInfo {
   username: string;
   firstname?: string;
   lastname?: string;
+  fullname?: string;
   email?: string;
   lang?: string;
   userpictureurl?: string;
   siteurl: string;
   sitename: string;
+  functions?: Array<{ name?: string }>;
 }
 
 interface MoodleUser {
@@ -45,15 +47,25 @@ interface MoodleUser {
   userpictureurl?: string;
 }
 
+interface MoodleCourseSummary {
+  id: number;
+}
+
+interface MoodleCourseUserProfile {
+  roles?: Array<{
+    shortname?: string;
+    shortName?: string;
+    name?: string;
+  }>;
+}
+
 const TEACHER_ROLE_HINTS = [
-  'admin',
+  'manager',
+  'editingteacher',
   'teacher',
-  'faculty',
+  'coursecreator',
   'instructor',
-  'lecturer',
-  'professor',
-  'proctor',
-  'invigilator'
+  'faculty'
 ];
 
 export function inferMoodleRoleFromIdentity(identity: {
@@ -83,6 +95,46 @@ class MoodleService {
   constructor() {
     this.baseUrl = config.moodle.baseUrl;
     this.serviceShortname = config.moodle.serviceShortname;
+  }
+
+  private async callWebService<T>(
+    token: string,
+    functionName: string,
+    params: Record<string, string | number | boolean | Array<string | number>> = {}
+  ): Promise<T> {
+    const resolvedParams = new URLSearchParams({
+      wstoken: token,
+      wsfunction: functionName,
+      moodlewsrestformat: 'json'
+    });
+
+    for (const [key, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => {
+          resolvedParams.append(`${key}[${index}]`, String(entry));
+        });
+      } else {
+        resolvedParams.append(key, String(value));
+      }
+    }
+
+    const response = await axios.get<T | { exception: string; message?: string; errorcode?: string }>(
+      `${this.baseUrl}/webservice/rest/server.php`,
+      { params: resolvedParams }
+    );
+
+    if (response.status !== 200) {
+      throw new MoodleError(`Moodle REST server failed (${response.status})`);
+    }
+
+    const data = response.data;
+    if (typeof data === 'object' && data && 'exception' in data) {
+      const msg = typeof data.message === 'string' ? data.message : 'Moodle exception';
+      const code = data.errorcode ? ` (${data.errorcode})` : '';
+      throw new MoodleError(`${msg}${code}`);
+    }
+
+    return data as T;
   }
 
   /**
@@ -150,33 +202,10 @@ class MoodleService {
    */
   async validateToken(token: string): Promise<MoodleSiteInfo> {
     try {
-      const params = new URLSearchParams({
-        wstoken: token,
-        wsfunction: 'core_webservice_get_site_info',
-        moodlewsrestformat: 'json',
-      });
+      const data = await this.callWebService<MoodleSiteInfo>(token, 'core_webservice_get_site_info');
 
-      const response = await axios.get<MoodleSiteInfo | { exception: string; message?: string; errorcode?: string }>(
-        `${this.baseUrl}/webservice/rest/server.php`,
-        { params }
-      );
-
-      if (response.status !== 200) {
-        throw new MoodleError(`Moodle REST server failed (${response.status})`);
-      }
-
-      const data = response.data;
-
-      // Check for exception
-      if ('exception' in data) {
-        const msg = typeof data.message === 'string' ? data.message : 'Moodle exception';
-        const code = data.errorcode ? ` (${data.errorcode})` : '';
-        throw new MoodleError(`${msg}${code}`);
-      }
-
-      // Return site info (this is the successful case)
       if ('userid' in data && typeof data.userid === 'number') {
-        return data as MoodleSiteInfo;
+        return data;
       }
 
       throw new MoodleError('Unexpected Moodle response from site info');
@@ -201,11 +230,11 @@ class MoodleService {
    * Sync user from Moodle to database
    * Returns user role (student or teacher)
    */
-  async syncUser(_moodleToken: string, siteInfo: MoodleSiteInfo): Promise<{
+  async syncUser(moodleToken: string, siteInfo: MoodleSiteInfo): Promise<{
     userId: number;
     role: 'student' | 'teacher';
   }> {
-    const role = inferMoodleRoleFromIdentity(siteInfo);
+    const role = await this.resolveUserRole(moodleToken, siteInfo);
 
     if (role === 'teacher') {
       logger.info(`Resolved Moodle user ${siteInfo.username || siteInfo.email} as teacher`);
@@ -232,6 +261,69 @@ class MoodleService {
       fullname: `${siteInfo.firstname || ''} ${siteInfo.lastname || ''}`.trim(),
       userpictureurl: siteInfo.userpictureurl,
     };
+  }
+
+  async resolveUserRole(
+    token: string,
+    siteInfo: Pick<MoodleSiteInfo, 'userid' | 'username' | 'email'>
+  ): Promise<'student' | 'teacher'> {
+    try {
+      const directRoles = await this.callWebService<Array<{
+        shortname?: string;
+        shortName?: string;
+        name?: string;
+      }>>(
+        token,
+        'core_role_get_user_roles',
+        { userid: siteInfo.userid }
+      ).catch(() => []);
+
+      const normalizedDirectRoles = directRoles.flatMap(role => [
+        role.shortname,
+        role.shortName,
+        role.name
+      ])
+        .filter((value): value is string => Boolean(value))
+        .map(value => value.toLowerCase());
+
+      if (normalizedDirectRoles.some(role => TEACHER_ROLE_HINTS.includes(role))) {
+        return 'teacher';
+      }
+
+      const courses = await this.callWebService<MoodleCourseSummary[]>(
+        token,
+        'core_enrol_get_users_courses',
+        { userid: siteInfo.userid }
+      ).catch(() => []);
+
+      for (const course of courses) {
+        const profiles = await this.callWebService<MoodleCourseUserProfile[]>(
+          token,
+          'core_user_get_course_user_profiles',
+          {
+            'userlist[0][userid]': siteInfo.userid,
+            'userlist[0][courseid]': course.id
+          }
+        ).catch(() => []);
+
+        const normalizedRoles = profiles
+          .flatMap(profile => profile.roles || [])
+          .flatMap(role => [role.shortname, role.shortName, role.name])
+          .filter((value): value is string => Boolean(value))
+          .map(value => value.toLowerCase());
+
+        if (normalizedRoles.some(role => TEACHER_ROLE_HINTS.includes(role))) {
+          return 'teacher';
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to resolve Moodle role from web services, using fallback role resolution', {
+        userId: siteInfo.userid,
+        error: (error as Error).message
+      });
+    }
+
+    return inferMoodleRoleFromIdentity(siteInfo);
   }
 
   getResolvedEmail(siteInfo: Pick<MoodleSiteInfo, 'email' | 'userid' | 'username'>): string {
