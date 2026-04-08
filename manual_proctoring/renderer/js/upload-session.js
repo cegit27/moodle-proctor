@@ -101,6 +101,61 @@ function buildQrImageSource (session) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(session.mobileEntryUrl)}`
 }
 
+function updateQrPresentation (session) {
+  const qrImage = document.getElementById('uploadSessionQrImage')
+  const qrFallback = document.getElementById('uploadSessionQrFallback')
+  const qrImageSource = buildQrImageSource(session)
+  const previousSource = qrImage?.dataset.qrSource || ''
+
+  if (!qrImage) {
+    return
+  }
+
+  if (qrImageSource) {
+    qrImage.onerror = () => {
+      qrImage.hidden = true
+      qrImage.removeAttribute('src')
+      qrImage.dataset.qrSource = ''
+      if (qrFallback) {
+        qrFallback.textContent = 'QR code unavailable. Use the link below.'
+        qrFallback.hidden = false
+      }
+    }
+
+    qrImage.onload = () => {
+      if (qrFallback) {
+        qrFallback.hidden = true
+      }
+    }
+
+    if (previousSource !== qrImageSource) {
+      if (qrFallback) {
+        qrFallback.textContent = session.qrCodeDataUrl
+          ? 'Generating QR code...'
+          : 'Loading QR code...'
+        qrFallback.hidden = false
+      }
+
+      qrImage.dataset.qrSource = qrImageSource
+      qrImage.src = qrImageSource
+    }
+
+    qrImage.hidden = false
+    return
+  }
+
+  qrImage.hidden = true
+  qrImage.removeAttribute('src')
+  qrImage.dataset.qrSource = ''
+
+  if (qrFallback) {
+    qrFallback.textContent = uploadSession?.token
+      ? 'Generating QR code...'
+      : 'QR code unavailable'
+    qrFallback.hidden = false
+  }
+}
+
 function setStatusBadge (status) {
   const badge = document.getElementById('uploadSessionStatusBadge')
 
@@ -125,8 +180,6 @@ function renderUploadSession (session) {
   storeLocalUploadSession(session)
   setStatusBadge(session.status)
 
-  const qrImage = document.getElementById('uploadSessionQrImage')
-  const qrFallback = document.getElementById('uploadSessionQrFallback')
   const mobileLink = document.getElementById('uploadSessionMobileLink')
   const student = document.getElementById('uploadSessionStudent')
   const exam = document.getElementById('uploadSessionExam')
@@ -139,43 +192,8 @@ function renderUploadSession (session) {
   const receipt = document.getElementById('uploadSessionReceipt')
   const fileName = document.getElementById('uploadSessionFileName')
   const stateMessage = document.getElementById('uploadSessionStateMessage')
-  const qrImageSource = buildQrImageSource(session)
 
-  if (qrImage && qrImageSource) {
-    qrImage.onerror = () => {
-      qrImage.hidden = true
-      qrImage.removeAttribute('src')
-      if (qrFallback) {
-        qrFallback.textContent = 'QR code unavailable. Use the link below.'
-        qrFallback.hidden = false
-      }
-    }
-    qrImage.onload = () => {
-      if (qrFallback) {
-        qrFallback.hidden = true
-      }
-    }
-    qrImage.src = qrImageSource
-    qrImage.hidden = false
-    if (qrFallback) {
-      qrFallback.textContent = session.qrCodeDataUrl
-        ? 'Generating QR code...'
-        : 'Loading QR code...'
-      qrFallback.hidden = false
-    }
-  } else {
-    if (qrImage) {
-      qrImage.hidden = true
-      qrImage.removeAttribute('src')
-    }
-
-    if (qrFallback) {
-      qrFallback.textContent = uploadSession?.token
-        ? 'Generating QR code...'
-        : 'QR code unavailable'
-      qrFallback.hidden = false
-    }
-  }
+  updateQrPresentation(session)
 
   if (mobileLink) {
     mobileLink.href = session.mobileEntryUrl || '#'
