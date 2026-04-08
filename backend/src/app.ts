@@ -29,6 +29,7 @@ import teacherSSE from './modules/teacher/teacher.sse'
 import manualProctoringRoutes from './modules/manual-proctoring/manual-proctoring.routes'
 import roomRoutes from './modules/room/room.routes'
 import liveMonitoringRoutes from './modules/live-monitoring/live-monitoring.routes'
+import ltiRoutes from './modules/lti/lti.routes'
 
 // ============================================================================
 // Feature Flags
@@ -191,6 +192,7 @@ export async function createApp () {
   await app.register(manualProctoringRoutes)
   await app.register(roomRoutes)
   await app.register(liveMonitoringRoutes)
+  await app.register(ltiRoutes)
 
   // ==========================================================================
   // Health Check Endpoint
