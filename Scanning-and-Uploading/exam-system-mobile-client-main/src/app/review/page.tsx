@@ -30,7 +30,7 @@ export default function ReviewPage() {
     else if (pages.length === 0) router.replace('/scan');
   }, [sessionToken, pages.length, router]);
 
-  if (!sessionToken || pages.length === 0) return null;
+  if (!sessionToken) return null;
 
   const handleUpload = async () => {
     if (uploadStatus === 'uploading') return;
@@ -127,11 +127,17 @@ export default function ReviewPage() {
           pages={pages}
           onChange={reorderPages}
           onDelete={(id) => {
-            if (pages.length === 1) {
-              router.replace('/scan');
-            } else {
-              removePage(id);
-            }
+            removePage(id);
+
+            setTimeout(() => {
+              const remaining = useScanStore.getState().pages.length;
+              if (remaining === 0) {
+                router.replace('/scan');
+              }
+            }, 50);
+          }}
+          onRetake={(id) => {
+            router.push(`/scan?retake=${id}`);
           }}
         />
 

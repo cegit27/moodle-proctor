@@ -3,7 +3,7 @@
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -17,17 +17,17 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { type ScannedPage } from '@/store/scanStore';
-import Image from 'next/image';
-
-// ── Single sortable page card ──────────────────────────────────────────────────
+// ── Single sortable page card ───────────────────────────────────────────────
 function SortablePageCard({
   page,
   index,
   onDelete,
+  onRetake,
 }: {
   page: ScannedPage;
   index: number;
   onDelete: () => void;
+  onRetake: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: page.id });
@@ -37,16 +37,16 @@ function SortablePageCard({
     transition,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 50 : 1,
+    touchAction: 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="relative group rounded-xl overflow-hidden bg-surface border border-border
-        touch-manipulation"
+      className="relative group rounded-xl overflow-hidden bg-surface border border-border"
     >
-      {/* Drag handle + thumbnail */}
+      {/* Drag handle */}
       <div
         {...attributes}
         {...listeners}
@@ -62,8 +62,10 @@ function SortablePageCard({
       </div>
 
       {/* Page number badge */}
-      <div className="absolute top-2 left-2 bg-bg/80 backdrop-blur-sm
-        rounded-md px-1.5 py-0.5 font-mono text-xs text-text-primary border border-border/50">
+      <div
+        className="absolute top-2 left-2 bg-bg/80 backdrop-blur-sm
+        rounded-md px-1.5 py-0.5 font-mono text-xs text-text-primary border border-border/50"
+      >
         {index + 1}
       </div>
 
@@ -71,12 +73,20 @@ function SortablePageCard({
       <button
         onClick={onDelete}
         className="absolute top-2 right-2 w-6 h-6 rounded-full
-          bg-danger/90 text-white flex items-center justify-center
-          opacity-0 group-active:opacity-100 focus:opacity-100
-          transition-opacity text-xs font-bold shadow-lg"
-        aria-label={`Delete page ${index + 1}`}
+        bg-danger/90 text-white flex items-center justify-center
+        opacity-0 group-active:opacity-100 focus:opacity-100
+        transition-opacity text-xs font-bold shadow-lg"
       >
         ×
+      </button>
+
+      {/*  Retake button */}
+      <button
+        onClick={() => onRetake(page.id)}
+        className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded
+        bg-blue-600 text-white shadow"
+      >
+        Retake
       </button>
 
       {/* Footer */}
@@ -89,42 +99,58 @@ function SortablePageCard({
   );
 }
 
-// ── Sortable grid ──────────────────────────────────────────────────────────────
+
+// ── Sortable grid ───────────────────────────────────────────────────────────
 interface SortablePageGridProps {
   pages: ScannedPage[];
   onChange: (pages: ScannedPage[]) => void;
   onDelete: (id: string) => void;
+  onRetake: (id: string) => void;   //  added
 }
 
 export default function SortablePageGrid({
   pages,
   onChange,
   onDelete,
+  onRetake,
 }: SortablePageGridProps) {
+
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 8 },
+    }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
+      activationConstraint: { delay: 120, tolerance: 5 },
     })
   );
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const oldIdx = pages.findIndex((p) => p.id === active.id);
-    const newIdx = pages.findIndex((p) => p.id === over.id);
-    onChange(arrayMove(pages, oldIdx, newIdx));
+
+    const oldIndex = pages.findIndex((p) => p.id === active.id);
+    const newIndex = pages.findIndex((p) => p.id === over.id);
+
+    onChange(arrayMove(pages, oldIndex, newIndex));
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={pages.map((p) => p.id)} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-3 gap-2 p-4">
-          {pages.map((page, i) => (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={pages.map((p) => p.id)}
+        strategy={rectSortingStrategy}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4">
+          {pages.map((page, index) => (
             <SortablePageCard
               key={page.id}
               page={page}
-              index={i}
+              index={index}
               onDelete={() => onDelete(page.id)}
+              onRetake={onRetake}   //  passed here
             />
           ))}
         </div>
