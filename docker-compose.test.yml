@@ -1,0 +1,45 @@
+version: '3.8'
+services:
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: proctor_user
+      POSTGRES_PASSWORD: proctor_pass
+      POSTGRES_DB: moodle_proctor_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./moodle-proctor/tests/fixtures/test-db-seed.sql:/docker-entrypoint-initdb.d/01-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proctor_user moodle_proctor_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  test-runner:
+    image: node:20-alpine
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    working_dir: /app
+    command: >
+      sh -c "
+        cd moodle-proctor &&
+        npm ci &&
+        npm run test:unit &&
+        npm run test:integration &&
+        cd ../moodle-proctor/tests &&
+        npx playwright test &&
+        cd ../ai_proctoring &&
+        pytest tests/unit/ai_proctoring/ --cov=.
+      "
+    environment:
+      - DATABASE_URL=postgresql://proctor_user:proctor_pass@postgres-test:5432/moodle_proctor_test
+
+volumes:
+  postgres_test_data:
+

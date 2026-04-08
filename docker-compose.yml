@@ -134,6 +134,31 @@ services:
       retries: 3
 
   # ============================================================================
+  # FRONTEND (Next.js)
+  # ============================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: moodle-proctor-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:5000
+    networks:
+      - proctor-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================================================
   # AI PROCTORING SERVICE (Python/FastAPI)
   # ============================================================================
   ai-proctoring:
@@ -153,6 +178,11 @@ services:
     networks:
       - proctor-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     # GPU support (if available)
     # deploy:
     #   resources:
