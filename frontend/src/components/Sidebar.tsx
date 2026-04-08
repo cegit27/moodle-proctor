@@ -4,12 +4,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import {
-  FiActivity,
   FiAlertTriangle,
-  FiBarChart2,
   FiLogOut,
   FiMonitor,
-  FiUsers,
 } from "react-icons/fi";
 
 interface NavItem {
@@ -19,11 +16,8 @@ interface NavItem {
 }
 
 export const dashboardNavItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <FiActivity className="h-4 w-4" /> },
   { label: "Monitoring", href: "/dashboard/monitoring", icon: <FiMonitor className="h-4 w-4" /> },
   { label: "Alerts", href: "/dashboard/alerts", icon: <FiAlertTriangle className="h-4 w-4" /> },
-  { label: "Students", href: "/dashboard/students", icon: <FiUsers className="h-4 w-4" /> },
-  { label: "Reports", href: "/dashboard/reports", icon: <FiBarChart2 className="h-4 w-4" /> },
 ];
 
 export const Sidebar = () => {

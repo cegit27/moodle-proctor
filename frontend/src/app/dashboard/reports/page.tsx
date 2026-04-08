@@ -1,9 +1,5 @@
-import { ReportTable } from "@components/ReportTable";
+import { redirect } from "next/navigation";
 
 export default function ReportsPage() {
-  return (
-    <section className="space-y-6">
-      <ReportTable />
-    </section>
-  );
+  redirect("/dashboard/monitoring");
 }

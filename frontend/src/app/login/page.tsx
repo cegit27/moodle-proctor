@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { FiActivity, FiArrowRight, FiShield, FiVideo } from "react-icons/fi";
 
 const platformStats = [
@@ -19,7 +19,38 @@ function LoginPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const nextPath = searchParams.get("next") || "/dashboard";
+  const nextPath = searchParams.get("next") || "/dashboard/monitoring";
+
+  useEffect(() => {
+    let active = true;
+
+    const resumeExistingSession = async () => {
+      try {
+        const response = await fetch("/api/auth/backend-session", {
+          credentials: "include",
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          authenticated?: boolean;
+          token?: string;
+        };
+
+        if (!active || !response.ok || !data.authenticated || !data.token) {
+          return;
+        }
+
+        window.localStorage.setItem("auth_token", data.token);
+        router.replace(nextPath);
+      } catch {
+        // stay on login if session recovery is unavailable
+      }
+    };
+
+    void resumeExistingSession();
+
+    return () => {
+      active = false;
+    };
+  }, [nextPath, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -179,6 +210,11 @@ function LoginPageContent() {
               <div className="rounded-[24px] border border-slate-200 bg-white/75 px-4 py-4 text-sm leading-6 text-slate-600">
                 Passwords are managed in Moodle. If your access is missing, contact the exam admin
                 rather than requesting a reset from this dashboard.
+              </div>
+
+              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-6 text-emerald-800">
+                If you opened this from Moodle, sign in once here and you will go straight to the
+                monitoring desk.
               </div>
 
               <button
