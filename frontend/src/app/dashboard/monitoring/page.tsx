@@ -536,6 +536,55 @@ export default function LiveMonitoringPage() {
               )}
             </div>
           </section>
+
+          <section className="rounded-[20px] border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-4">
+              <h3 className="text-base font-semibold text-slate-950">Students needing attention</h3>
+              <p className="mt-1 text-sm text-slate-600">Highest warning counts in this room.</p>
+            </div>
+
+            <div className="max-h-[420px] overflow-y-auto px-4 py-4">
+              {flaggedStudents.length === 0 ? (
+                <div className="text-sm text-slate-500">No warnings in this room right now.</div>
+              ) : (
+                <div className="space-y-3">
+                  {flaggedStudents.map((student) => {
+                    const isSelected = selectedMonitoredStudent?.enrollmentId === student.enrollmentId;
+
+                    return (
+                      <button
+                        key={student.enrollmentId}
+                        type="button"
+                        onClick={() =>
+                          setSelectedStudent({
+                            enrollmentId: student.enrollmentId,
+                            attemptId: student.attemptId,
+                            userId: student.userId,
+                            studentName: student.studentName,
+                            studentEmail: student.studentEmail,
+                          })
+                        }
+                        className={`w-full rounded-[14px] border px-3 py-3 text-left ${
+                          isSelected ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{student.studentName}</p>
+                            <p className="mt-1 text-xs text-slate-500">{student.studentEmail}</p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            <FiAlertTriangle className="h-3.5 w-3.5" />
+                            {student.warningCount}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         <aside className="space-y-4">
@@ -635,55 +684,6 @@ export default function LiveMonitoringPage() {
               ) : (
                 <div className="text-sm text-slate-500">
                   Click a student tile to see details here.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="rounded-[20px] border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-4 py-4">
-              <h3 className="text-base font-semibold text-slate-950">Students needing attention</h3>
-              <p className="mt-1 text-sm text-slate-600">Highest warning counts in this room.</p>
-            </div>
-
-            <div className="max-h-[420px] overflow-y-auto px-4 py-4">
-              {flaggedStudents.length === 0 ? (
-                <div className="text-sm text-slate-500">No warnings in this room right now.</div>
-              ) : (
-                <div className="space-y-3">
-                  {flaggedStudents.map((student) => {
-                    const isSelected = selectedMonitoredStudent?.enrollmentId === student.enrollmentId;
-
-                    return (
-                      <button
-                        key={student.enrollmentId}
-                        type="button"
-                        onClick={() =>
-                          setSelectedStudent({
-                            enrollmentId: student.enrollmentId,
-                            attemptId: student.attemptId,
-                            userId: student.userId,
-                            studentName: student.studentName,
-                            studentEmail: student.studentEmail,
-                          })
-                        }
-                        className={`w-full rounded-[14px] border px-3 py-3 text-left ${
-                          isSelected ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{student.studentName}</p>
-                            <p className="mt-1 text-xs text-slate-500">{student.studentEmail}</p>
-                          </div>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-amber-700">
-                            <FiAlertTriangle className="h-3.5 w-3.5" />
-                            {student.warningCount}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
                 </div>
               )}
             </div>
