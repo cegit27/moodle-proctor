@@ -24,6 +24,8 @@ function normalizeRoomCode(roomCode: string) {
 
 export default function StudentDesktopLaunchPage() {
   const launchTimerRef = useRef<number | null>(null);
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [hasAcceptedRules, setHasAcceptedRules] = useState(false);
   const [form, setForm] = useState<LaunchFormState>({
     roomCode: '',
     studentName: '',
@@ -44,6 +46,7 @@ export default function StudentDesktopLaunchPage() {
     () => form.studentEmail.trim().toLowerCase(),
     [form.studentEmail]
   );
+  const warningLimitCopy = 'the warning limit set for this exam';
 
   const desktopLink = useMemo(() => {
     if (!normalizedRoomCode) {
@@ -129,26 +132,28 @@ export default function StudentDesktopLaunchPage() {
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
+  const validateLaunchForm = () => {
     if (!normalizedStudentName || normalizedStudentName.length < 2) {
       setError('Enter your full name.');
-      return;
+      return false;
     }
 
     if (!EMAIL_REGEX.test(normalizedStudentEmail)) {
       setError('Enter a valid email address.');
-      return;
+      return false;
     }
 
     if (!ROOM_CODE_REGEX.test(normalizedRoomCode)) {
       setError('Enter the 8-character room code.');
-      return;
+      return false;
     }
 
     setError(null);
     setShowFallback(false);
+    return true;
+  };
+
+  const launchDesktopApp = () => {
     setStatus('Opening the desktop app...');
 
     if (launchTimerRef.current !== null) {
@@ -161,6 +166,29 @@ export default function StudentDesktopLaunchPage() {
       setShowFallback(true);
       setStatus('If the app did not open, use the fallback options below.');
     }, 1600);
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!validateLaunchForm()) {
+      return;
+    }
+
+    setHasAcceptedRules(false);
+    setIsRulesModalOpen(true);
+    setStatus('Please review the exam rules before opening the desktop app.');
+  };
+
+  const handleConfirmLaunch = () => {
+    setIsRulesModalOpen(false);
+    launchDesktopApp();
+  };
+
+  const handleCloseRulesModal = () => {
+    setIsRulesModalOpen(false);
+    setHasAcceptedRules(false);
+    setStatus('Exam start cancelled. Review the rules when you are ready.');
   };
 
   return (
@@ -315,6 +343,58 @@ export default function StudentDesktopLaunchPage() {
             ) : null}
           </div>
         </section>
+
+        {isRulesModalOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6">
+            <div className="w-full max-w-2xl rounded-[24px] border border-slate-200 bg-white shadow-2xl">
+              <div className="border-b border-slate-200 px-6 py-5">
+                <h2 className="text-2xl font-semibold text-slate-950">Exam rules and conditions</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  Read these rules carefully. Warnings are recorded during the exam, and the exam will end automatically at {warningLimitCopy}.
+                </p>
+              </div>
+
+              <div className="px-6 py-5">
+                <ul className="space-y-3 text-sm text-slate-700">
+                  <li>Your camera must stay on before and during the exam.</li>
+                  <li>Leaving fullscreen or kiosk mode counts as a warning.</li>
+                  <li>Switching away from the exam window or hiding it counts as a warning.</li>
+                  <li>Blocked apps such as browsers, chat apps, or meeting apps may be closed automatically.</li>
+                  <li>Printing during the exam counts as a warning.</li>
+                  <li>Leaving the exam before submission may submit your attempt immediately.</li>
+                  <li>Each warning increases your warning count and is saved in the proctoring log.</li>
+                  <li>At {warningLimitCopy}, the exam is submitted automatically and cannot be resumed.</li>
+                </ul>
+
+                <label className="mt-5 flex items-start gap-3 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4">
+                  <input
+                    type="checkbox"
+                    checked={hasAcceptedRules}
+                    onChange={(event) => setHasAcceptedRules(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm text-slate-700">
+                    I have read and understood the exam rules, warning policy, and automatic submission policy.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+                <button type="button" onClick={handleCloseRulesModal} className="btn-secondary">
+                  Not now
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmLaunch}
+                  disabled={!hasAcceptedRules}
+                  className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  I understand, open desktop app
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </main>
   );
