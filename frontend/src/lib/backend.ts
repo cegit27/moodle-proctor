@@ -136,6 +136,21 @@ export interface ProctoringRoomSummary {
   activatedAt: string | null;
 }
 
+export interface RoomMonitoringStudent {
+  enrollmentId: number;
+  roomId: number;
+  attemptId: number | null;
+  userId: number | null;
+  studentName: string;
+  studentEmail: string;
+  status: 'not_started' | 'in_progress' | 'submitted' | 'terminated';
+  startedAt: string | null;
+  submittedAt: string | null;
+  ipAddress: string | null;
+  warningCount: number;
+  totalViolationCount: number;
+}
+
 export interface CreatedRoomDetails {
   roomId: number;
   roomCode: string;
@@ -472,6 +487,12 @@ class BackendAPIClient {
       {
         method: 'DELETE',
       }
+    );
+  }
+
+  async getRoomStudents(roomId: number) {
+    return this.request<{ success: true; data: RoomMonitoringStudent[] }>(
+      `/api/room/${roomId}/students`
     );
   }
 

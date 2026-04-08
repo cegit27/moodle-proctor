@@ -16,7 +16,6 @@ import {
   submitManualExamAttempt
 } from '../manual-proctoring/manual-proctoring.compat';
 import {
-  getActiveAttemptIdForUserAndExam,
   getCompatibilityAttemptSnapshot,
   linkAttemptToEnrollment
 } from '../room/room-enrollment.service';
@@ -149,9 +148,7 @@ export default fp(async (fastify: FastifyInstance) => {
 
       try {
         if (roomEnrollment) {
-          const existingAttemptId =
-            roomEnrollment.attemptId ||
-            await getActiveAttemptIdForUserAndExam(fastify.pg as any, userId, examId);
+          const existingAttemptId = roomEnrollment.attemptId;
 
           if (existingAttemptId) {
             await linkAttemptToEnrollment(
@@ -173,7 +170,20 @@ export default fp(async (fastify: FastifyInstance) => {
           }
         }
 
-        const result = await examService.startExam(userId, examId, ipAddress, userAgent);
+        let result;
+
+        try {
+          result = await examService.startExam(userId, examId, ipAddress, userAgent);
+        } catch (error) {
+          const message = (error as Error).message;
+
+          if (roomEnrollment && message === 'Exam already in progress') {
+            await examService.terminateActiveAttemptsForExam(userId, examId, 'superseded_by_new_room_session');
+            result = await examService.startExam(userId, examId, ipAddress, userAgent);
+          } else {
+            throw error;
+          }
+        }
 
         if (roomEnrollment) {
           await linkAttemptToEnrollment(

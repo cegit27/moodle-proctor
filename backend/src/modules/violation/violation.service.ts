@@ -32,6 +32,7 @@ export class ViolationService {
   ): Promise<ViolationResponse> {
     const {
       attemptId,
+      roomId,
       violationType,
       severity = 'warning',
       detail,
@@ -88,12 +89,13 @@ export class ViolationService {
 
       const result = await client.query<ViolationRow>(
         `INSERT INTO violations
-        (attempt_id, violation_type, severity, detail, occurred_at,
+        (attempt_id, room_id, violation_type, severity, detail, occurred_at,
          frame_snapshot_path, metadata, integrity_hash, ai_signature, client_ip, session_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *`,
         [
           attemptId,
+          roomId || null,
           violationType,
           severity,
           detail || null,

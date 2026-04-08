@@ -21,9 +21,11 @@ interface SnapshotFeed {
 }
 
 export interface MonitoringStudentSelection {
+  enrollmentId?: number | null;
   attemptId?: number | null;
   userId?: number | null;
   studentName: string;
+  studentEmail?: string | null;
 }
 
 interface StudentsGridProps {

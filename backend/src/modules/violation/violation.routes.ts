@@ -57,7 +57,7 @@ export default fp(async (fastify: FastifyInstance) => {
       // @ts-ignore
       const userId = request.user.id;
       const roomEnrollment = (request as any).roomEnrollment as
-        | { attemptId: number | null; maxWarnings: number }
+        | { roomId: number; attemptId: number | null; maxWarnings: number }
         | undefined;
       const body = (request.body || {}) as ReportViolationRequest & { type?: string };
       const normalizedViolationType = body.violationType || body.type || undefined;
@@ -103,6 +103,7 @@ export default fp(async (fastify: FastifyInstance) => {
           {
             ...body,
             attemptId: resolvedAttemptId,
+            roomId: roomEnrollment?.roomId,
             violationType: normalizedViolationType
           },
           userId,

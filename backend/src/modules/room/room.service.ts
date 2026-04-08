@@ -188,6 +188,21 @@ export interface ActiveRoomSummary {
   activated_at: Date | null;
 }
 
+export interface RoomMonitoringStudentSummary {
+  enrollmentId: number;
+  roomId: number;
+  attemptId: number | null;
+  userId: number | null;
+  studentName: string;
+  studentEmail: string;
+  status: 'not_started' | 'in_progress' | 'submitted' | 'terminated';
+  startedAt: Date | null;
+  submittedAt: Date | null;
+  ipAddress: string | null;
+  warningCount: number;
+  totalViolationCount: number;
+}
+
 // ============================================================================
 // ProctoringRoomService
 // ============================================================================
@@ -487,6 +502,61 @@ export class ProctoringRoomService {
     }
 
     await this.pg.query('DELETE FROM proctoring_rooms WHERE id = $1', [roomId]);
+  }
+
+  async getMonitoringStudents(
+    roomId: number,
+    teacherId: number
+  ): Promise<RoomMonitoringStudentSummary[]> {
+    const roomResult = await this.pg.query<Room>(
+      'SELECT * FROM proctoring_rooms WHERE id = $1',
+      [roomId]
+    );
+
+    if (roomResult.rows.length === 0) {
+      throw new RoomNotFoundError(roomId.toString());
+    }
+
+    const room = roomResult.rows[0];
+
+    if (room.teacher_id !== teacherId) {
+      throw new NotRoomOwnerError(roomId, teacherId);
+    }
+
+    const result = await this.pg.query<RoomMonitoringStudentSummary>(
+      `SELECT
+         prs.id as "enrollmentId",
+         prs.room_id as "roomId",
+         prs.attempt_id as "attemptId",
+         u.id as "userId",
+         prs.student_name as "studentName",
+         prs.student_email as "studentEmail",
+         COALESCE(ea.status, 'not_started') as status,
+         ea.started_at as "startedAt",
+         ea.submitted_at as "submittedAt",
+         ea.ip_address as "ipAddress",
+         COALESCE(vc.warning_count, ea.violation_count, 0) as "warningCount",
+         COALESCE(vc.total_count, 0) as "totalViolationCount"
+       FROM proctoring_room_students prs
+       LEFT JOIN users u ON LOWER(u.email) = LOWER(prs.student_email)
+       LEFT JOIN exam_attempts ea ON ea.id = prs.attempt_id
+       LEFT JOIN LATERAL (
+         SELECT
+           COUNT(*) FILTER (WHERE v.severity = 'warning')::int as warning_count,
+           COUNT(*)::int as total_count
+         FROM violations v
+         WHERE v.attempt_id = prs.attempt_id
+         AND (v.room_id = prs.room_id OR v.room_id IS NULL)
+       ) vc ON TRUE
+       WHERE prs.room_id = $1
+       ORDER BY
+         COALESCE(vc.warning_count, ea.violation_count, 0) DESC,
+         COALESCE(ea.started_at, prs.joined_at) DESC,
+         prs.student_name ASC`,
+      [roomId]
+    );
+
+    return result.rows;
   }
 
   /**

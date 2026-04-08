@@ -16,12 +16,17 @@ import {
 import { RoomCreationModal } from "@components/RoomCreationModal";
 import { RoomSelector } from "@components/RoomSelector";
 import { MonitoringStudentSelection, StudentsGrid } from "@components/StudentsGrid";
-import { useActiveRooms, useAttempts } from "@/hooks/useTeacherData";
-import { backendAPI, type ProctoringRoomSummary } from "@/lib/backend";
-import { formatDateTime, getDisplayName, getRiskStatus } from "@/lib/dashboard";
+import { useActiveRooms } from "@/hooks/useTeacherData";
+import {
+  backendAPI,
+  type ProctoringRoomSummary,
+  type RoomMonitoringStudent,
+} from "@/lib/backend";
+import { formatDateTime, getRiskStatus } from "@/lib/dashboard";
 import { StatusBadge } from "@components/StatusBadge";
 
 const LAST_ROOM_STORAGE_KEY = "teacher-monitoring:last-room-code";
+const ROOM_STUDENT_POLL_INTERVAL_MS = 2500;
 
 interface AttemptViolation {
   id: number;
@@ -65,18 +70,14 @@ export default function LiveMonitoringPage() {
   const [selectedStudent, setSelectedStudent] = useState<MonitoringStudentSelection | null>(null);
   const [selectedViolations, setSelectedViolations] = useState<AttemptViolation[]>([]);
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
+  const [roomStudents, setRoomStudents] = useState<RoomMonitoringStudent[]>([]);
+  const [isLoadingRoomStudents, setIsLoadingRoomStudents] = useState(false);
   const hasHydratedRoom = useRef(false);
 
   const currentRoom = useMemo(
     () => rooms.find((room) => room.roomCode === currentRoomCode) ?? null,
     [rooms, currentRoomCode]
   );
-
-  const { attempts, isLoading: attemptsLoading } = useAttempts({
-    examId: currentRoom?.examId,
-    status: "in_progress",
-    limit: 100,
-  });
 
   useEffect(() => {
     if (typeof window === "undefined" || hasHydratedRoom.current || roomsLoading) {
@@ -111,55 +112,118 @@ export default function LiveMonitoringPage() {
     }
   }, [currentRoom, rooms]);
 
-  const flaggedAttempts = useMemo(
+  useEffect(() => {
+    setSelectedStudent(null);
+    setSelectedViolations([]);
+  }, [currentRoom?.id]);
+
+  const fetchRoomStudents = useCallback(async () => {
+    if (!currentRoom) {
+      setRoomStudents([]);
+      setIsLoadingRoomStudents(false);
+      return;
+    }
+
+    setIsLoadingRoomStudents(true);
+
+    try {
+      const response = await backendAPI.getRoomStudents(currentRoom.id);
+      if (response.success) {
+        setRoomStudents(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to load room students:", error);
+      setRoomStudents([]);
+    } finally {
+      setIsLoadingRoomStudents(false);
+    }
+  }, [currentRoom]);
+
+  useEffect(() => {
+    if (!currentRoom) {
+      setRoomStudents([]);
+      return;
+    }
+
+    void fetchRoomStudents();
+    const timerId = window.setInterval(() => {
+      void fetchRoomStudents();
+    }, ROOM_STUDENT_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [currentRoom, fetchRoomStudents]);
+
+  const flaggedStudents = useMemo(
     () =>
-      attempts
-        .filter((attempt) => attempt.violationCount > 0)
-        .sort((a, b) => b.violationCount - a.violationCount),
-    [attempts]
+      roomStudents
+        .filter((student) => student.warningCount > 0)
+        .sort((a, b) => b.warningCount - a.warningCount),
+    [roomStudents]
   );
 
-  const selectedAttempt = useMemo(() => {
+  const selectedMonitoredStudent = useMemo(() => {
     if (!selectedStudent) {
       return null;
     }
 
     return (
-      attempts.find((attempt) => selectedStudent.attemptId && attempt.id === selectedStudent.attemptId)
-      ?? attempts.find((attempt) => selectedStudent.userId && attempt.userId === selectedStudent.userId)
-      ?? attempts.find((attempt) => getDisplayName(attempt) === selectedStudent.studentName)
+      roomStudents.find(
+        (student) =>
+          selectedStudent.enrollmentId &&
+          student.enrollmentId === selectedStudent.enrollmentId
+      ) ??
+      roomStudents.find(
+        (student) => selectedStudent.attemptId && student.attemptId === selectedStudent.attemptId
+      ) ??
+      roomStudents.find(
+        (student) => selectedStudent.userId && student.userId === selectedStudent.userId
+      ) ??
+      roomStudents.find(
+        (student) =>
+          selectedStudent.studentEmail &&
+          student.studentEmail.toLowerCase() === selectedStudent.studentEmail.toLowerCase()
+      ) ??
+      roomStudents.find((student) => student.studentName === selectedStudent.studentName)
       ?? null
     );
-  }, [attempts, selectedStudent]);
+  }, [roomStudents, selectedStudent]);
 
   useEffect(() => {
-    if (selectedAttempt) {
+    if (selectedMonitoredStudent) {
       return;
     }
 
-    if (flaggedAttempts.length > 0) {
+    if (flaggedStudents.length > 0) {
       setSelectedStudent({
-        attemptId: flaggedAttempts[0].id,
-        userId: flaggedAttempts[0].userId,
-        studentName: getDisplayName(flaggedAttempts[0]),
+        enrollmentId: flaggedStudents[0].enrollmentId,
+        attemptId: flaggedStudents[0].attemptId,
+        userId: flaggedStudents[0].userId,
+        studentName: flaggedStudents[0].studentName,
+        studentEmail: flaggedStudents[0].studentEmail,
       });
       return;
     }
 
-    if (attempts.length > 0) {
+    if (roomStudents.length > 0) {
       setSelectedStudent({
-        attemptId: attempts[0].id,
-        userId: attempts[0].userId,
-        studentName: getDisplayName(attempts[0]),
+        enrollmentId: roomStudents[0].enrollmentId,
+        attemptId: roomStudents[0].attemptId,
+        userId: roomStudents[0].userId,
+        studentName: roomStudents[0].studentName,
+        studentEmail: roomStudents[0].studentEmail,
       });
       return;
     }
 
     setSelectedStudent(null);
-  }, [attempts, flaggedAttempts, selectedAttempt]);
+  }, [flaggedStudents, roomStudents, selectedMonitoredStudent]);
 
   useEffect(() => {
-    if (!selectedAttempt) {
+    const attemptId = selectedMonitoredStudent?.attemptId;
+
+    if (!attemptId) {
       setSelectedViolations([]);
       return;
     }
@@ -168,7 +232,7 @@ export default function LiveMonitoringPage() {
       setIsLoadingViolations(true);
 
       try {
-        const response = await backendAPI.getAttemptViolations(selectedAttempt.id);
+        const response = await backendAPI.getAttemptViolations(attemptId);
         if (response.success) {
           setSelectedViolations((response.data.violations || []) as AttemptViolation[]);
         }
@@ -181,7 +245,7 @@ export default function LiveMonitoringPage() {
     };
 
     loadViolations().catch(console.error);
-  }, [selectedAttempt]);
+  }, [selectedMonitoredStudent?.attemptId]);
 
   const handleRoomSelect = useCallback((room: ProctoringRoomSummary) => {
     setCurrentRoomCode(room.roomCode);
@@ -380,47 +444,53 @@ export default function LiveMonitoringPage() {
             </div>
 
             <div className="px-4 py-4">
-              {attemptsLoading ? (
+              {isLoadingRoomStudents ? (
                 <div className="flex items-center gap-2 text-sm text-slate-600">
                   <FiLoader className="h-4 w-4 animate-spin" />
                   Loading student details...
                 </div>
-              ) : selectedAttempt ? (
+              ) : selectedMonitoredStudent ? (
                 <div className="space-y-4">
                   <div>
-                    <p className="text-lg font-semibold text-slate-950">{getDisplayName(selectedAttempt)}</p>
-                    <p className="mt-1 text-sm text-slate-600">{selectedAttempt.email}</p>
+                    <p className="text-lg font-semibold text-slate-950">{selectedMonitoredStudent.studentName}</p>
+                    <p className="mt-1 text-sm text-slate-600">{selectedMonitoredStudent.studentEmail}</p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <StatusBadge status={getRiskStatus(selectedAttempt.violationCount)} />
+                    <StatusBadge status={getRiskStatus(selectedMonitoredStudent.warningCount)} />
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700">
-                      {selectedAttempt.violationCount} warnings
+                      {selectedMonitoredStudent.warningCount} warnings
                     </span>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700">
-                      {selectedAttempt.status.replace("_", " ")}
+                      {selectedMonitoredStudent.status.replace("_", " ")}
                     </span>
                   </div>
 
                   <div className="grid gap-3">
                     <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Exam</p>
-                      <p className="mt-1 text-sm text-slate-900">{selectedAttempt.examName}</p>
+                      <p className="mt-1 text-sm text-slate-900">{currentRoom?.examName || "Exam"}</p>
                     </div>
                     <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Started</p>
-                      <p className="mt-1 text-sm text-slate-900">{formatDateTime(selectedAttempt.startedAt)}</p>
+                      <p className="mt-1 text-sm text-slate-900">
+                        {selectedMonitoredStudent.startedAt
+                          ? formatDateTime(selectedMonitoredStudent.startedAt)
+                          : "Not started yet"}
+                      </p>
                     </div>
                     <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">IP address</p>
-                      <p className="mt-1 text-sm text-slate-900">{selectedAttempt.ipAddress || "Not available"}</p>
+                      <p className="mt-1 text-sm text-slate-900">
+                        {selectedMonitoredStudent.ipAddress || "Not available"}
+                      </p>
                     </div>
                   </div>
 
                   <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
-                    {selectedAttempt.violationCount > 0
-                      ? `${selectedAttempt.violationCount} proctoring warning${selectedAttempt.violationCount === 1 ? "" : "s"} recorded for this attempt.`
-                      : "No warnings recorded for this student yet."}
+                    {selectedMonitoredStudent.warningCount > 0
+                      ? `${selectedMonitoredStudent.warningCount} proctoring warning${selectedMonitoredStudent.warningCount === 1 ? "" : "s"} recorded in this room.`
+                      : "No warnings recorded for this student in this room yet."}
                   </div>
 
                   <div>
@@ -475,22 +545,24 @@ export default function LiveMonitoringPage() {
             </div>
 
             <div className="max-h-[420px] overflow-y-auto px-4 py-4">
-              {flaggedAttempts.length === 0 ? (
+              {flaggedStudents.length === 0 ? (
                 <div className="text-sm text-slate-500">No warnings in this room right now.</div>
               ) : (
                 <div className="space-y-3">
-                  {flaggedAttempts.map((attempt) => {
-                    const isSelected = selectedAttempt?.id === attempt.id;
+                  {flaggedStudents.map((student) => {
+                    const isSelected = selectedMonitoredStudent?.enrollmentId === student.enrollmentId;
 
                     return (
                       <button
-                        key={attempt.id}
+                        key={student.enrollmentId}
                         type="button"
                         onClick={() =>
                           setSelectedStudent({
-                            attemptId: attempt.id,
-                            userId: attempt.userId,
-                            studentName: getDisplayName(attempt),
+                            enrollmentId: student.enrollmentId,
+                            attemptId: student.attemptId,
+                            userId: student.userId,
+                            studentName: student.studentName,
+                            studentEmail: student.studentEmail,
                           })
                         }
                         className={`w-full rounded-[14px] border px-3 py-3 text-left ${
@@ -499,12 +571,12 @@ export default function LiveMonitoringPage() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-semibold text-slate-900">{getDisplayName(attempt)}</p>
-                            <p className="mt-1 text-xs text-slate-500">{attempt.email}</p>
+                            <p className="text-sm font-semibold text-slate-900">{student.studentName}</p>
+                            <p className="mt-1 text-xs text-slate-500">{student.studentEmail}</p>
                           </div>
                           <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-amber-700">
                             <FiAlertTriangle className="h-3.5 w-3.5" />
-                            {attempt.violationCount}
+                            {student.warningCount}
                           </span>
                         </div>
                       </button>

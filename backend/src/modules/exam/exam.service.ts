@@ -144,6 +144,26 @@ export class ExamService {
     }
   }
 
+  async terminateActiveAttemptsForExam(
+    userId: number,
+    examId: number,
+    submissionReason: string = 'superseded_by_new_room_session'
+  ): Promise<number> {
+    const result = await this.pg.query<{ id: number }>(
+      `UPDATE exam_attempts
+       SET status = 'terminated',
+           submitted_at = NOW(),
+           submission_reason = $3
+       WHERE user_id = $1
+       AND exam_id = $2
+       AND status = 'in_progress'
+       RETURNING id`,
+      [userId, examId, submissionReason]
+    );
+
+    return result.rowCount || 0;
+  }
+
   /**
    * Resume an existing exam attempt
    */

@@ -19,7 +19,8 @@ import type {
   StudentJoinResponse,
   ActiveRoomsResponse,
   CloseRoomResponse,
-  DeleteRoomResponse
+  DeleteRoomResponse,
+  RoomMonitoringStudentsResponse
 } from './room.schema';
 
 // ============================================================================
@@ -401,6 +402,67 @@ export default fp(async (fastify: FastifyInstance) => {
           success: false,
           error: 'Failed to join room. Please try again.'
         });
+      }
+    }
+  });
+
+  // ==========================================================================
+  // GET /api/room/:id/students - Get room-scoped monitoring students
+  // ==========================================================================
+
+  fastify.get('/api/room/:id/students', {
+    onRequest: [authMiddleware],
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' }
+        },
+        required: ['id']
+      }
+    },
+    handler: async (request, reply): Promise<RoomMonitoringStudentsResponse> => {
+      // @ts-ignore
+      const teacherId = request.user.id;
+      const { id } = request.params as { id: string };
+
+      try {
+        const roomId = parseInt(id, 10);
+        const students = await roomService.getMonitoringStudents(roomId, teacherId);
+
+        return {
+          success: true,
+          data: students.map(student => ({
+            enrollmentId: student.enrollmentId,
+            roomId: student.roomId,
+            attemptId: student.attemptId,
+            userId: student.userId,
+            studentName: student.studentName,
+            studentEmail: student.studentEmail,
+            status: student.status,
+            startedAt: student.startedAt?.toISOString() ?? null,
+            submittedAt: student.submittedAt?.toISOString() ?? null,
+            ipAddress: student.ipAddress,
+            warningCount: Number(student.warningCount) || 0,
+            totalViolationCount: Number(student.totalViolationCount) || 0
+          }))
+        };
+      } catch (error) {
+        if ((error as Error).name === 'RoomNotFoundError') {
+          return reply.code(404).send({
+            success: false,
+            error: 'Room not found'
+          });
+        }
+
+        if ((error as Error).name === 'NotRoomOwnerError') {
+          return reply.code(403).send({
+            success: false,
+            error: 'You are not the owner of this room'
+          });
+        }
+
+        throw error;
       }
     }
   });

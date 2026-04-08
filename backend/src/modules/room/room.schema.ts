@@ -98,3 +98,24 @@ export interface DeleteRoomResponse {
   };
   error?: string;
 }
+
+export interface RoomMonitoringStudent {
+  enrollmentId: number;
+  roomId: number;
+  attemptId: number | null;
+  userId: number | null;
+  studentName: string;
+  studentEmail: string;
+  status: 'not_started' | 'in_progress' | 'submitted' | 'terminated';
+  startedAt: string | null;
+  submittedAt: string | null;
+  ipAddress: string | null;
+  warningCount: number;
+  totalViolationCount: number;
+}
+
+export interface RoomMonitoringStudentsResponse {
+  success: boolean;
+  data?: RoomMonitoringStudent[];
+  error?: string;
+}
