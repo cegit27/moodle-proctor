@@ -148,11 +148,10 @@ export default function AnswerSheetsPage() {
           <div className="max-w-3xl">
             <span className="eyebrow-pill">Stored submissions</span>
             <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">
-              Answer sheet PDFs linked back to each student
+              Answer-sheet uploads by student
             </h2>
             <p className="section-copy mt-3">
-              This tab tracks scanned uploads after the exam, keeps them under the correct student,
-              and lets you open the stored PDF directly from the dashboard.
+              Review uploaded answer sheets here, grouped under the correct student, and open each stored PDF directly from the dashboard.
             </p>
           </div>
 
@@ -188,9 +187,9 @@ export default function AnswerSheetsPage() {
       <section className="surface-panel section-card">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-950">Filter uploads</h3>
+            <h3 className="text-lg font-semibold text-slate-950">Find uploads</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Search by student, exam, email, or attempt reference.
+              Search by student name, exam, email, or attempt reference.
             </p>
           </div>
 
@@ -201,7 +200,7 @@ export default function AnswerSheetsPage() {
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search uploads"
+                placeholder="Search by student or exam"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-10 py-3 text-sm text-slate-900 outline-none ring-0 transition focus:border-emerald-400"
               />
             </label>
@@ -260,15 +259,14 @@ export default function AnswerSheetsPage() {
         <div className="rounded-[20px] border border-slate-200 bg-white px-5 py-10 text-sm text-slate-600">
           <div className="flex items-center gap-2">
             <FiLoader className="h-4 w-4 animate-spin" />
-            Loading answer sheet uploads...
+            Loading answer-sheet uploads...
           </div>
         </div>
       ) : groupedUploads.length === 0 ? (
         <div className="rounded-[20px] border border-slate-200 bg-white px-5 py-12 text-center">
-          <h3 className="text-lg font-semibold text-slate-950">No answer sheet uploads yet</h3>
+          <h3 className="text-lg font-semibold text-slate-950">No answer-sheet uploads yet</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Uploaded PDFs will appear here after students scan the post-exam QR and submit their
-            answer sheets from phone.
+            Uploaded PDFs will appear here after students scan the post-exam QR code and submit from their phone.
           </p>
         </div>
       ) : (
@@ -333,7 +331,7 @@ export default function AnswerSheetsPage() {
                           File
                         </p>
                         <p className="mt-2 text-sm text-slate-900">
-                          {upload.fileName || "Pending PDF upload"}
+                          {upload.fileName || "Waiting for PDF upload"}
                         </p>
                         {upload.fileName ? (
                           <p className="mt-1 text-xs text-slate-500">{formatBytes(upload.fileSizeBytes)}</p>
@@ -341,7 +339,7 @@ export default function AnswerSheetsPage() {
                       </div>
                       <div className="rounded-2xl border border-white bg-white px-3 py-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                          Attempt signal
+                          Exam warnings
                         </p>
                         <p className="mt-2 text-sm text-slate-900">
                           {upload.attemptViolationCount} warning{upload.attemptViolationCount === 1 ? "" : "s"}

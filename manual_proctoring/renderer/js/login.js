@@ -18,7 +18,7 @@ function setLoadingState(isLoading) {
   }
 
   loginButton.disabled = isLoading
-  loginButton.innerText = isLoading ? 'Signing In...' : 'Login'
+  loginButton.innerText = isLoading ? 'Signing In...' : 'Sign In'
 }
 
 async function validateExistingSession() {
@@ -29,7 +29,7 @@ async function validateExistingSession() {
   }
 
   setLoadingState(true)
-  setMessage('Checking active session...', 'info')
+  setMessage('Checking your saved session...', 'info')
 
   try {
     const response = await fetchWithSession(`${API_BASE_URL}/api/session`)
@@ -54,7 +54,7 @@ async function validateExistingSession() {
 
     window.location = 'dashboard.html'
   } catch (error) {
-    setMessage('Could not verify your saved session. Please sign in again.', 'error')
+    setMessage('We could not verify your saved session. Please sign in again.', 'error')
   } finally {
     setLoadingState(false)
   }
@@ -65,7 +65,7 @@ async function login() {
   const password = document.getElementById('password').value
 
   if (!email || !password) {
-    setMessage('Enter both email and password.', 'error')
+    setMessage('Enter both your email and password.', 'error')
     return
   }
 
@@ -86,7 +86,7 @@ async function login() {
 
     if (!response.ok || !data.success) {
       clearSession()
-      setMessage(data.message || 'Invalid login credentials.', 'error')
+      setMessage(data.message || 'Your email or password is incorrect.', 'error')
       return
     }
 
@@ -99,7 +99,7 @@ async function login() {
     window.location = 'dashboard.html'
   } catch (error) {
     clearSession()
-    setMessage('Unable to reach the server. Check that the backend is running.', 'error')
+    setMessage('We could not reach the server. Please make sure the backend is running.', 'error')
   } finally {
     setLoadingState(false)
   }

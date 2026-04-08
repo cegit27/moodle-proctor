@@ -1450,7 +1450,7 @@ function renderCompletionScreen (
   document.body.innerHTML = `
     <div class="completion-screen">
       <div class="completion-card">
-        <h1>Exam Completed</h1>
+        <h1>Exam Submitted</h1>
         <p>${escapeHtml(reasonLabel)}</p>
         <div style="margin-top: 20px; text-align: left; display: grid; gap: 12px;">
           <div>
@@ -1469,8 +1469,8 @@ function renderCompletionScreen (
         <p style="margin-top: 20px; color: #475467;">
           ${
             shouldContactInvigilator
-              ? 'Please contact the invigilator if you need clarification about this submission.'
-              : 'If you have any questions, please contact the invigilator.'
+              ? 'If you need help with this submission, please contact the invigilator or teacher.'
+              : 'If you need help, please contact the invigilator or teacher.'
           }
         </p>
         ${uploadErrorMarkup}
@@ -1488,13 +1488,13 @@ function finishExamUI (reason, uploadError = '', uploadDiagnostics = null) {
 
   const messageByReason = {
     manual_submit: 'Your exam has been submitted successfully.',
-    timer_expired: 'Time is up. Your exam has been submitted automatically.',
-    left_exam: 'Leaving the exam submitted your attempt automatically.',
+    timer_expired: 'Time is up. Your exam was submitted automatically.',
+    left_exam: 'You left the exam, so your attempt was submitted automatically.',
     warning_limit_reached: `The exam was terminated permanently after reaching ${getCurrentWarningLimit()} warnings.`
   }
 
   renderCompletionScreen(
-    messageByReason[reason] || 'Your exam session has ended successfully.',
+    messageByReason[reason] || 'Your exam session has ended.',
     completionAttempt,
     uploadError,
     uploadDiagnostics
@@ -1885,7 +1885,7 @@ async function startExamAttempt () {
 }
 
 async function loadExam () {
-  setExamStatus('Loading your exam...', 'info')
+    setExamStatus('Loading your exam...', 'info')
 
   try {
     const response = await fetchWithSessionOrRoom(`${API_BASE_URL}/api/exam`)
@@ -1974,7 +1974,7 @@ async function loadExam () {
     }
 
     await loadQuestionSummary()
-    setExamStatus('Your exam is ready. Stay focused and good luck.', 'info')
+    setExamStatus('Your exam is ready. You may begin now.', 'info')
   } catch (error) {
     console.error('Error loading exam:', error)
     markBackendDisconnected(

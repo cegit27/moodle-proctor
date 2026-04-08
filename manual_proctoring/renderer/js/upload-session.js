@@ -85,18 +85,18 @@ function formatUploadSummary (session) {
   const status = String(session?.status || 'awaiting_upload')
 
   if (status === 'uploaded') {
-    return 'Answer sheet PDF received. This upload is now stored and visible in the teacher dashboard.'
+    return 'Your answer-sheet PDF has been received successfully.'
   }
 
   if (status === 'expired') {
-    return 'The upload window ended before a PDF was submitted. Create a new upload session if the teacher wants to accept a late file.'
+    return 'The upload window has ended. Please contact the invigilator or teacher if you still need to submit.'
   }
 
   if (status === 'upload_in_progress') {
-    return 'The student has started the upload. Keep this screen open until the status changes to uploaded.'
+    return 'Your file is being uploaded. Please keep this page open until the upload is complete.'
   }
 
-  return 'Waiting for the student to scan the QR code and submit the answer sheet PDF from their phone.'
+  return 'Scan the QR code and upload your answer-sheet PDF before the upload window ends.'
 }
 
 function buildQrImageSource (session) {
@@ -127,7 +127,7 @@ function updateQrPresentation (session) {
       qrImage.removeAttribute('src')
       qrImage.dataset.qrSource = ''
       if (qrFallback) {
-        qrFallback.textContent = 'QR code unavailable. Use the link below.'
+        qrFallback.textContent = 'QR code unavailable. Use the link below instead.'
         qrFallback.hidden = false
       }
     }
@@ -302,12 +302,12 @@ function renderMissingSession () {
   const card = document.getElementById('uploadSessionStateMessage')
 
   if (fallback) {
-    fallback.textContent = 'No active upload session'
+    fallback.textContent = 'No upload session found'
     fallback.hidden = false
   }
 
   if (card) {
-    card.textContent = 'The upload session was not available. Return to the dashboard and submit the exam again if you need to recreate it.'
+    card.textContent = 'This upload session is not available. Return to the exam home page and submit again if you need a new upload session.'
   }
 }
 

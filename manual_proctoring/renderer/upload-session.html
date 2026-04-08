@@ -8,20 +8,20 @@
   <div class="upload-session-shell">
     <section class="upload-session-hero">
       <div>
-        <div class="upload-session-kicker">Post-Exam Upload</div>
+        <div class="upload-session-kicker">Post-Exam Step</div>
         <h1 class="upload-session-title">Upload Answer Sheet</h1>
         <p class="upload-session-copy">
           Scan this QR code on your phone to upload your answer-sheet PDF before the upload window ends. If scanning does not work, use the link shown below the QR code.
         </p>
       </div>
-      <div class="upload-session-badge" id="uploadSessionStatusBadge">Preparing session...</div>
+      <div class="upload-session-badge" id="uploadSessionStatusBadge">Preparing upload...</div>
     </section>
 
     <section class="upload-session-grid">
       <article class="upload-session-card upload-session-card-qr">
         <div class="upload-session-card-header">
           <div>
-            <h2 class="upload-session-card-title">Student QR</h2>
+            <h2 class="upload-session-card-title">Scan To Upload</h2>
             <p class="upload-session-card-copy">Use this QR or the link below to open the answer-sheet upload page on your phone.</p>
           </div>
         </div>
@@ -32,15 +32,15 @@
         </div>
 
         <div class="upload-session-link-row">
-          <a id="uploadSessionMobileLink" class="upload-session-link" href="#" target="_blank" rel="noopener noreferrer">Open mobile upload link</a>
+          <a id="uploadSessionMobileLink" class="upload-session-link" href="#" target="_blank" rel="noopener noreferrer">Open the upload page on your phone</a>
         </div>
       </article>
 
       <article class="upload-session-card">
         <div class="upload-session-card-header">
           <div>
-            <h2 class="upload-session-card-title">Session Details</h2>
-            <p class="upload-session-card-copy" id="uploadSessionStateMessage">Waiting for the student to scan the QR and submit the answer sheet PDF.</p>
+            <h2 class="upload-session-card-title">Upload Details</h2>
+            <p class="upload-session-card-copy" id="uploadSessionStateMessage">Scan the QR code and upload the answer-sheet PDF before the timer ends.</p>
           </div>
         </div>
 
@@ -89,7 +89,7 @@
 
         <div class="upload-session-actions">
           <button class="secondary-btn" id="uploadSessionRefreshButton" type="button">Refresh Status</button>
-          <button class="secondary-btn" id="uploadSessionBackButton" type="button">Back to Dashboard</button>
+          <button class="secondary-btn" id="uploadSessionBackButton" type="button">Return to Home</button>
         </div>
       </article>
     </section>

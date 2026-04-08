@@ -156,8 +156,8 @@ export default function HomePage() {
             <span className="text-accent">Upload</span>
           </h1>
           <p className="mt-2 text-text-secondary text-sm leading-relaxed">
-            Scan the QR code shown after the exam to verify the upload session and
-            continue to the PDF upload step.
+            Scan the QR code shown after your exam to open your upload session and
+            continue to the PDF submission step.
           </p>
         </div>
 
@@ -195,7 +195,7 @@ export default function HomePage() {
                     bg-accent text-bg tracking-wide
                     active:scale-[0.97] transition-transform shadow-lg shadow-accent/20"
                 >
-                  Scan QR And Allow Camera
+                  Scan QR Code
                 </button>
 
                 <div className="flex items-center gap-3">
@@ -206,8 +206,8 @@ export default function HomePage() {
 
                 <div className="bg-surface border border-border rounded-xl p-4 text-center">
                   <p className="text-text-secondary text-sm">
-                    Use your phone&apos;s native camera app to scan the QR and this page
-                    will open with the upload session token.
+                    You can also scan the QR with your phone&apos;s camera app to open
+                    this upload page directly.
                   </p>
                 </div>
               </div>
@@ -268,6 +268,7 @@ export default function HomePage() {
                   >
                     <p className="text-white/60 text-sm font-mono">
                       Point at the QR code on the post-exam upload screen
+                      
                     </p>
                   </div>
                 </div>
@@ -289,7 +290,7 @@ export default function HomePage() {
                   Verifying session...
                 </p>
                 <p className="text-text-secondary text-sm mt-1">
-                  Checking exam, student, and upload window
+                  Checking your exam, student, and upload window
                 </p>
               </div>
             </div>

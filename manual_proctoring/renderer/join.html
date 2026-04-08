@@ -2,7 +2,7 @@
 <html>
 
 <head>
-<title>Join Exam Room</title>
+<title>Join Exam Session</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
 .join-info {
@@ -28,22 +28,22 @@
 
 <div class="container">
 
-<h2>Join Exam Room</h2>
+<h2>Join Exam Session</h2>
 
 <p class="join-info">
-  <strong>Enter your details to join the proctoring session</strong>
-  Please provide your name and email as registered with your institution.
+  <strong>Enter your details to begin the exam session</strong>
+  Use the same name and email that were registered for this exam.
 </p>
 
 <input id="studentName" type="text" placeholder="Your Full Name" autocomplete="name">
 
 <input id="studentEmail" type="email" placeholder="Your Email Address" autocomplete="email">
 
-<input id="roomCode" type="text" placeholder="Invite Code (e.g., Xy7Ab9Pq)" maxlength="8" style="text-transform: uppercase; font-family: 'Courier New', monospace; letter-spacing: 2px;">
+<input id="roomCode" type="text" placeholder="Exam Code (for example, Xy7Ab9Pq)" maxlength="8" style="text-transform: uppercase; font-family: 'Courier New', monospace; letter-spacing: 2px;">
 
 <p id="joinMessage" class="status-message" hidden></p>
 
-<button id="joinButton" onclick="joinRoom()">Join Room</button>
+<button id="joinButton" onclick="joinRoom()">Continue</button>
 
 </div>
 

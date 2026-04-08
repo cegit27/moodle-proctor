@@ -35,17 +35,17 @@ function updateViolationPolicyCopy(maxWarnings = 15) {
 
   if (violationModalCopy) {
     violationModalCopy.innerText =
-      `Read these rules carefully. Every violation will be recorded, each warning will trigger a loud beep, and your exam will be permanently terminated after ${maxWarnings} warnings.`
+      `Read these rules carefully. Warnings are recorded during the exam, and the exam will end automatically after ${maxWarnings} warnings.`
   }
 
   if (warningLimitRule) {
     warningLimitRule.innerText =
-      `At ${maxWarnings} warnings, the exam is auto-submitted and cannot be resumed.`
+      `At ${maxWarnings} warnings, the exam is submitted automatically and cannot be resumed.`
   }
 
   if (warningLimitAgreement) {
     warningLimitAgreement.innerText =
-      `I have read and understood the exam rules, warning policy, and ${maxWarnings}-warning termination limit.`
+      `I have read and understood the exam rules, warning policy, and the ${maxWarnings}-warning limit.`
   }
 }
 
@@ -67,7 +67,7 @@ function renderAttemptSummary(attempt) {
   attemptWarningsElement.innerText = `${warningCount} / ${maxWarnings}`
   attemptSubmissionReasonElement.innerText = submissionReason
     ? formatLabel(submissionReason)
-    : 'Not submitted'
+    : 'Not submitted yet'
 }
 
 function updateStartButton(attempt) {
@@ -94,7 +94,7 @@ async function loadDashboard() {
     const data = await response.json()
 
     if (!response.ok || !data.student) {
-      setStatus('Could not load student details.', 'error')
+      setStatus('We could not load your exam details.', 'error')
       return
     }
 
@@ -106,18 +106,18 @@ async function loadDashboard() {
     updateStartButton(data.attempt)
 
     if (data.attempt?.status === 'submitted') {
-      setStatus('This exam attempt has already been submitted.', 'info')
+      setStatus('This exam has already been submitted.', 'info')
       return
     }
 
     if (data.attempt?.status === 'in_progress') {
-      setStatus('Your exam is already in progress. You can continue when ready.', 'info')
+      setStatus('Your exam is already in progress. You can continue when you are ready.', 'info')
       return
     }
 
     setStatus('You are ready to start the exam.', 'info')
   } catch (error) {
-    setStatus('Could not reach the backend. Make sure the server is running.', 'error')
+    setStatus('We could not reach the server. Please make sure the backend is running.', 'error')
   }
 }
 
@@ -127,7 +127,7 @@ function startExam() {
   const confirmStartButton = document.getElementById('confirmStartButton')
 
   if (!violationModal || !agreementCheckbox || !confirmStartButton) {
-    setStatus('Opening exam...', 'info')
+    setStatus('Opening your exam...', 'info')
     window.location = 'exam.html'
     return
   }
@@ -135,7 +135,7 @@ function startExam() {
   agreementCheckbox.checked = false
   confirmStartButton.disabled = true
   violationModal.hidden = false
-  setStatus('Please review the exam rules before starting.', 'info')
+  setStatus('Please review the exam rules before you start.', 'info')
 }
 
 function closeViolationModal() {
@@ -150,7 +150,7 @@ function closeViolationModal() {
 }
 
 function confirmStartExam() {
-  setStatus('Opening exam...', 'info')
+  setStatus('Opening your exam...', 'info')
   window.location = 'exam.html'
 }
 

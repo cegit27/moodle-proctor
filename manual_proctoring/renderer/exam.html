@@ -10,14 +10,14 @@
   <div class="exam-container">
     <div class="top-bar">
       <div>
-        <div id="examTitle">Exam in Progress</div>
+        <div id="examTitle">Exam In Progress</div>
         <div class="exam-meta">
           <span id="examStudentName">Loading...</span>
           <span id="examStudentEmail">Loading...</span>
         </div>
       </div>
       <div class="exam-top-right">
-        <div>Timer: <span id="timer">00:00</span></div>
+        <div>Time Left: <span id="timer">00:00</span></div>
         <div id="warningProgress" class="warning-progress warning-progress-safe">
           Warnings:
           <span id="violationCount">0</span>
@@ -30,7 +30,7 @@
 
     <div class="exam-actions">
       <button class="primary-btn" id="submitExamButton" onclick="submitExam('manual_submit')">Submit Exam</button>
-      <button class="secondary-btn" onclick="goBackToDashboard()">Back to Dashboard</button>
+      <button class="secondary-btn" onclick="goBackToDashboard()">Return to Home</button>
     </div>
 
     <div id="devMonitoringPanel" class="dev-monitoring-panel" hidden>
@@ -49,7 +49,7 @@
         <div class="section-heading-row">
           <div>
             <h2 class="section-title">Question Paper</h2>
-            <p class="section-copy">Read the official paper here. Live monitoring stays visible in the floating panel while you work.</p>
+            <p class="section-copy">Read the question paper here. Your camera and warning status remain visible while you work.</p>
           </div>
         </div>
         <iframe id="questionFrame" class="question-frame"></iframe>
@@ -59,7 +59,7 @@
         <section class="exam-surface exam-side-card">
           <h2 class="section-title">Question Summary</h2>
           <p class="section-copy">
-            Review the objective questions here while keeping the full paper open in the PDF.
+            Review the listed questions here while keeping the full paper open.
           </p>
           <ul id="questionSummaryList" class="summary-list">
             <li class="empty-list-message">Loading questions...</li>
@@ -69,7 +69,7 @@
         <section class="exam-surface exam-side-card">
           <h2 class="section-title">Warning History</h2>
           <p class="section-copy">
-            The latest 5 warnings recorded for this attempt are shown below.
+            The latest warnings recorded for this attempt are shown below.
           </p>
           <ul id="warningHistoryList" class="summary-list">
             <li class="empty-list-message">No warnings recorded yet.</li>
@@ -84,7 +84,7 @@
       <div id="proctorDockHandle" class="proctor-panel-header proctor-panel-handle">
         <div>
           <div class="proctor-panel-kicker">Live Monitoring</div>
-          <h2 class="proctor-panel-title">Proctor View</h2>
+          <h2 class="proctor-panel-title">Camera Status</h2>
         </div>
         <div class="proctor-panel-actions">
           <span id="videoAiStatusBadge" class="video-status-badge video-status-badge-idle">Idle</span>

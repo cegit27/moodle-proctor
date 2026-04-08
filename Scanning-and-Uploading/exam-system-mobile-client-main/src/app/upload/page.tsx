@@ -261,7 +261,7 @@ export default function UploadPage() {
         if (error.session.status === 'expired') {
           setUploadStatus('error', 0);
           setErrorMsg(
-            'This upload window has expired. Ask the teacher to create a fresh QR upload session if a late submission should be accepted.'
+            'This upload window has expired. Please ask the teacher for a new QR code if your submission should still be accepted.'
           );
           return;
         }
@@ -271,7 +271,7 @@ export default function UploadPage() {
       setErrorMsg(
         error instanceof Error
           ? error.message
-          : 'Could not upload the answer sheet PDF.'
+          : 'We could not upload your answer-sheet PDF.'
       );
     }
   };
@@ -293,9 +293,9 @@ export default function UploadPage() {
               Submit Answer Sheet PDF
             </h1>
             <p className="mt-2 text-sm text-text-secondary leading-relaxed max-w-[32rem]">
-              Upload the final scanned PDF for this student. The session is
-              refreshed against the backend so duplicate, expired, and completed
-              uploads are shown clearly before you submit.
+              Upload your final scanned PDF here. This page checks your upload
+              session automatically so completed, expired, or duplicate uploads
+              are shown clearly before you submit.
             </p>
           </div>
           <div
@@ -322,8 +322,8 @@ export default function UploadPage() {
               This answer sheet has already been uploaded
             </h2>
             <p className="mt-2 text-sm text-text-secondary leading-relaxed">
-              A PDF was already submitted for this QR session. The teacher dashboard
-              now has the stored file for this student.
+              A PDF has already been submitted for this QR code. Your teacher can
+              now view the stored file.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl bg-bg border border-border p-4">
@@ -335,7 +335,7 @@ export default function UploadPage() {
               <div className="rounded-2xl bg-bg border border-border p-4">
                 <p className="text-xs text-text-muted uppercase tracking-wider">Receipt</p>
                 <p className="mt-1 text-sm font-semibold text-text-primary">
-                  {session.upload.receiptId || 'Available in teacher dashboard'}
+                  {session.upload.receiptId || 'Saved successfully'}
                 </p>
               </div>
             </div>
@@ -393,7 +393,7 @@ export default function UploadPage() {
             Student Confirmation
           </p>
           <h2 className="mt-2 text-xl font-display font-bold text-text-primary">
-            Confirm the upload belongs to this student
+            Confirm these exam details
           </h2>
           <label className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-bg p-4">
             <input
@@ -404,7 +404,7 @@ export default function UploadPage() {
               className="mt-1 h-4 w-4 accent-[var(--accent)]"
             />
             <span className="text-sm leading-relaxed text-text-secondary">
-              I confirm this PDF is for <strong className="text-text-primary">{session.student.name}</strong>
+              I confirm that this PDF belongs to <strong className="text-text-primary">{session.student.name}</strong>
               {' '}({session.student.studentId}) for <strong className="text-text-primary">{session.exam.name}</strong>.
             </span>
           </label>
@@ -413,16 +413,15 @@ export default function UploadPage() {
         <section className="rounded-3xl bg-surface border border-border p-5 shadow-sm">
           <div>
             <p className="font-mono text-xs uppercase tracking-widest text-text-muted">
-              PDF Upload
-            </p>
-            <h2 className="mt-2 text-xl font-display font-bold text-text-primary">
-              Choose the final PDF file
-            </h2>
-            <p className="mt-2 text-sm text-text-secondary leading-relaxed">
-              Accepted type: PDF only. The current backend limit is 10 MB. Once
-              uploaded, the session is marked complete for this token and repeated
-              submissions are blocked.
-            </p>
+            PDF Upload
+          </p>
+          <h2 className="mt-2 text-xl font-display font-bold text-text-primary">
+            Choose your final PDF file
+          </h2>
+          <p className="mt-2 text-sm text-text-secondary leading-relaxed">
+            Accepted type: PDF only. Maximum size: 10 MB. After a successful
+            upload, this QR session is marked complete and cannot be reused.
+          </p>
           </div>
 
           <div className="mt-5 rounded-2xl border border-dashed border-accent/30 bg-accent/5 p-5">

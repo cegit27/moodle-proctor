@@ -76,12 +76,12 @@ export default function SuccessPage() {
           style={{ animationDelay: '400ms' }}
         >
           <h1 className="font-display font-extrabold text-3xl text-text-primary leading-tight">
-            Submitted!
+            Upload Complete
           </h1>
           <p className="text-text-secondary mt-2 text-sm leading-relaxed">
-            Your answer sheet PDF has been uploaded successfully.
+            Your answer-sheet PDF has been uploaded successfully.
             <br />
-            Keep this receipt if the teacher asks you to confirm submission.
+            Keep this receipt until your teacher confirms the submission.
           </p>
         </div>
 
@@ -92,7 +92,7 @@ export default function SuccessPage() {
           <div className="px-4 py-3 bg-accent/5 border-b border-accent/10 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-accent" />
             <span className="font-mono text-xs text-accent uppercase tracking-widest">
-              Upload Receipt
+              Submission Receipt
             </span>
           </div>
 
@@ -138,20 +138,20 @@ export default function SuccessPage() {
         style={{ animationDelay: '720ms' }}
       >
         <div className="flex flex-col gap-4">
-          <button
+            <button
             type="button"
             onClick={() => {
               reset();
               router.replace('/');
             }}
             className="w-full rounded-2xl bg-accent text-bg py-4 px-5 font-display font-bold text-base shadow-lg shadow-accent/20"
-          >
-            Done
+            >
+            Finish
           </button>
 
           <div className="text-center">
           <p className="text-text-muted text-xs font-mono">
-            AI Proctor - Exam Management System
+            You may now close this page.
           </p>
           </div>
         </div>

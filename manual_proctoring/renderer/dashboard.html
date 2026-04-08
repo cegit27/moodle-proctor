@@ -7,8 +7,8 @@
 <body>
 <div class="container dashboard">
   <div class="dashboard-header">
-    <h2>Student Dashboard</h2>
-    <button id="logoutButton" class="secondary-btn" onclick="logout()">Logout</button>
+    <h2>Exam Home</h2>
+    <button id="logoutButton" class="secondary-btn" onclick="logout()">Sign Out</button>
   </div>
 
   <p id="dashboardMessage" class="status-message" hidden></p>
@@ -20,10 +20,10 @@
   </div>
 
   <div class="dashboard-card">
-    <h3>Attempt Summary</h3>
+    <h3>Exam Status</h3>
     <p>Status: <span id="attemptStatus">Loading...</span></p>
     <p>Warnings Used: <span id="attemptWarnings">Loading...</span></p>
-    <p>Last Submission Reason: <span id="attemptSubmissionReason">Not submitted</span></p>
+    <p>Last Submission: <span id="attemptSubmissionReason">Not submitted yet</span></p>
   </div>
 
   <button class="start-btn" onclick="startExam()">Start Exam</button>
@@ -31,31 +31,30 @@
 
 <div id="violationModal" class="modal-overlay" hidden>
   <div class="modal-card">
-    <h3>Exam Rules And Violations</h3>
+    <h3>Exam Rules</h3>
     <p id="violationModalCopy" class="modal-copy">
-      Read these rules carefully. Every violation will be recorded, each warning will trigger a loud beep,
-      and your exam will be permanently terminated after the warning limit is reached.
+      Read these rules carefully before you begin. Warnings are recorded during the exam, and the exam will end automatically if the warning limit is reached.
     </p>
 
     <ul class="violation-list">
-      <li>A working camera is mandatory before the exam can start.</li>
-      <li>Leaving fullscreen or kiosk mode is a warning.</li>
-      <li>Switching away from the exam window or hiding the page is a warning.</li>
-      <li>Opening blocked apps like browsers, chat apps, or meeting apps is a warning and those apps will be closed automatically.</li>
-      <li>Trying to print during the exam is a warning.</li>
-      <li>Leaving the exam before submission may submit the exam immediately.</li>
-      <li>Every warning increases your warning count and is written to the proctoring log.</li>
-      <li id="warningLimitRule">At the warning limit, the exam is auto-submitted and cannot be resumed.</li>
+      <li>Your camera must stay on before and during the exam.</li>
+      <li>Leaving fullscreen or kiosk mode counts as a warning.</li>
+      <li>Switching away from the exam window or hiding it counts as a warning.</li>
+      <li>Blocked apps such as browsers, chat apps, or meeting apps may be closed automatically.</li>
+      <li>Printing during the exam counts as a warning.</li>
+      <li>Leaving the exam before submission may submit your attempt immediately.</li>
+      <li>Each warning increases your warning count and is saved in the proctoring log.</li>
+      <li id="warningLimitRule">When the warning limit is reached, the exam is submitted automatically and cannot be resumed.</li>
     </ul>
 
     <label class="agreement-row">
       <input type="checkbox" id="violationAgreement">
-      <span id="warningLimitAgreement">I have read and understood the exam rules, warning policy, and the warning-limit termination policy.</span>
+      <span id="warningLimitAgreement">I have read and understood the exam rules, warning policy, and automatic submission policy.</span>
     </label>
 
     <div class="modal-actions">
-      <button class="secondary-btn" type="button" onclick="closeViolationModal()">Cancel</button>
-      <button class="start-btn" id="confirmStartButton" type="button" onclick="confirmStartExam()" disabled>I Agree And Start</button>
+      <button class="secondary-btn" type="button" onclick="closeViolationModal()">Not Now</button>
+      <button class="start-btn" id="confirmStartButton" type="button" onclick="confirmStartExam()" disabled>I Understand, Start Exam</button>
     </div>
   </div>
 </div>
