@@ -6,10 +6,26 @@ import { TopNavbar } from "@components/TopNavbar";
 import { Sidebar } from "@components/Sidebar";
 import { BACKEND_TOKEN_COOKIE } from "@/lib/auth";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "http://localhost:5000";
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const backendToken = cookies().get(BACKEND_TOKEN_COOKIE)?.value;
 
   if (!backendToken) {
+    redirect("/login?next=/dashboard/monitoring");
+  }
+
+  const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${backendToken}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
     redirect("/login?next=/dashboard/monitoring");
   }
 

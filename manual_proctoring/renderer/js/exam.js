@@ -33,6 +33,14 @@ let webRTCBroadcastState = {
 let teacherBroadcastStartTimeoutId = null
 
 let roomEnrollment = null
+let currentExamSettings = {
+  enableAiProctoring: true,
+  enableManualProctoring: true,
+  autoSubmitOnWarningLimit: true,
+  captureSnapshots: true,
+  allowStudentRejoin: true,
+  maxWarnings: 15
+}
 
 async function getSafeStorage () {
   const safeStorage = window.electronAPI?.safeStorage
@@ -204,6 +212,15 @@ const EXAM_CONFIG = {
     'Camera may be blocked': 500
   }
 }
+function getCurrentWarningLimit () {
+  return Number(
+    currentAttempt?.maxWarnings ||
+      currentExamSettings.maxWarnings ||
+      EXAM_CONFIG.maxWarnings ||
+      15
+  )
+}
+
 const PROCTOR_FEED_UI = {
   boxClassByState: {
     idle: 'video-box-idle',
@@ -238,7 +255,6 @@ const PROCTOR_FEED_UI = {
     error: 'Error'
   }
 }
-const MAX_WARNINGS = EXAM_CONFIG.maxWarnings
 const recentBlockedAppWarnings = new Map()
 const PROCTOR_DOCK_POSITION_KEY = 'manual_proctoring.proctorDock.position'
 const PROCTOR_DOCK_COLLAPSED_KEY = 'manual_proctoring.proctorDock.collapsed'
@@ -1341,7 +1357,7 @@ function finishExamUI (reason) {
     manual_submit: 'Your exam has been submitted successfully.',
     timer_expired: 'Time is up. Your exam has been submitted automatically.',
     left_exam: 'Leaving the exam submitted your attempt automatically.',
-    warning_limit_reached: `The exam was terminated permanently after reaching ${MAX_WARNINGS} warnings.`
+    warning_limit_reached: `The exam was terminated permanently after reaching ${getCurrentWarningLimit()} warnings.`
   }
 
   renderCompletionScreen(
@@ -1414,7 +1430,7 @@ async function reportViolation (type, detail, severity = 'warning') {
     if (data.attempt.status === 'submitted') {
       setExamStatus(
         data.message ||
-          `Exam terminated after reaching ${MAX_WARNINGS} warnings.`,
+          `Exam terminated after reaching ${getCurrentWarningLimit()} warnings.`,
         'error'
       )
       finishExamUI(data.attempt.submissionReason || 'warning_limit_reached')
@@ -1549,6 +1565,11 @@ async function loadExam () {
     if (data.attempt?.status === 'submitted') {
       finishExamUI(data.attempt.submissionReason || 'manual_submit')
       return
+    }
+
+    currentExamSettings = {
+      ...currentExamSettings,
+      ...(data.settings || {})
     }
 
     currentAttempt = data.attempt
@@ -1697,7 +1718,10 @@ async function startCamera () {
       return false
     }
 
-    if (window.electronAPI?.ensureAIProctoringService) {
+    if (
+      currentExamSettings.enableAiProctoring &&
+      window.electronAPI?.ensureAIProctoringService
+    ) {
       setAIProctoringStatus({
         state: 'starting',
         detail: 'Starting AI proctoring and preparing the live feed...'
@@ -1713,6 +1737,11 @@ async function startCamera () {
         )
         return false
       }
+    } else if (!currentExamSettings.enableAiProctoring) {
+      setAIProctoringStatus({
+        state: 'idle',
+        detail: 'AI proctoring is turned off for this exam.'
+      })
     }
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -2001,6 +2030,10 @@ function startFrameCaptureWithOverlay (video) {
   const ctx = canvas.getContext('2d')
   const snapshotCanvas = document.createElement('canvas')
   const snapshotCtx = snapshotCanvas.getContext('2d')
+  const snapshotsEnabled =
+    currentExamSettings.captureSnapshots ||
+    currentExamSettings.enableManualProctoring
+  const aiMonitoringEnabled = currentExamSettings.enableAiProctoring
 
   const WS_URL = window.PROCTOR_WS_URL || 'ws://localhost:8000/proctor'
   let ws = null
@@ -2013,10 +2046,19 @@ function startFrameCaptureWithOverlay (video) {
   let snapshotUploadInFlight = false
   let teacherBroadcastStarted = false
 
-  setAIProctoringStatus({
-    state: 'starting',
-    detail: 'Connecting the live feed to AI monitoring...'
-  })
+  if (aiMonitoringEnabled) {
+    setAIProctoringStatus({
+      state: 'starting',
+      detail: 'Connecting the live feed to AI monitoring...'
+    })
+  } else {
+    setAIProctoringStatus({
+      state: 'idle',
+      detail: snapshotsEnabled
+        ? 'AI proctoring is off. Manual monitoring snapshots are still active.'
+        : 'AI and snapshot monitoring are turned off for this exam.'
+    })
+  }
 
   function ensureTeacherBroadcastStarted () {
     if (teacherBroadcastStarted) {
@@ -2166,6 +2208,7 @@ function startFrameCaptureWithOverlay (video) {
   }
 
   function maybeUploadSnapshot () {
+    if (!snapshotsEnabled) return
     if (!video.videoWidth) return
     const now = Date.now()
     if (
@@ -2189,6 +2232,10 @@ function startFrameCaptureWithOverlay (video) {
   }
 
   function ensureSnapshotLoop () {
+    if (!snapshotsEnabled) {
+      return
+    }
+
     if (snapshotIntervalId) {
       return
     }
@@ -2211,7 +2258,11 @@ function startFrameCaptureWithOverlay (video) {
   }
 
   ensureSnapshotLoop()
-  connect()
+  if (aiMonitoringEnabled) {
+    connect()
+  } else {
+    ensureTeacherBroadcastStarted()
+  }
 
   return {
     stop () {

@@ -21,6 +21,7 @@ export const RoomCreationModal = ({ isOpen, onClose, onRoomCreated }: Props) => 
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoadingExams, setIsLoadingExams] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [roomCapacity, setRoomCapacity] = useState<number>(15);
   const [error, setError] = useState<string | null>(null);
   const [createdRoom, setCreatedRoom] = useState<CreatedRoomResult | null>(null);
   const [copiedField, setCopiedField] = useState<"launch" | "invite" | "code" | null>(null);
@@ -47,6 +48,7 @@ export const RoomCreationModal = ({ isOpen, onClose, onRoomCreated }: Props) => 
       setSelectedExamId(null);
       setCreatedRoom(null);
       setCopiedField(null);
+      setRoomCapacity(15);
       setError(null);
       return;
     }
@@ -61,6 +63,7 @@ export const RoomCreationModal = ({ isOpen, onClose, onRoomCreated }: Props) => 
           const nextExams = response.data.exams || [];
           setExams(nextExams);
           setSelectedExamId((current) => current ?? nextExams[0]?.id ?? null);
+          setRoomCapacity(nextExams[0]?.roomCapacity ?? 15);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load exams");
@@ -83,6 +86,12 @@ export const RoomCreationModal = ({ isOpen, onClose, onRoomCreated }: Props) => 
     }
   }, [filteredExams, selectedExamId]);
 
+  useEffect(() => {
+    if (selectedExam) {
+      setRoomCapacity(selectedExam.roomCapacity);
+    }
+  }, [selectedExam]);
+
   const handleCopy = async (value: string, field: "launch" | "invite" | "code") => {
     try {
       await navigator.clipboard.writeText(value);
@@ -102,7 +111,9 @@ export const RoomCreationModal = ({ isOpen, onClose, onRoomCreated }: Props) => 
     setError(null);
 
     try {
-      const createResponse = await backendAPI.createRoom(selectedExamId);
+      const createResponse = await backendAPI.createRoom(selectedExamId, {
+        capacity: roomCapacity,
+      });
       const { roomId, roomCode, inviteLink, examName, courseName } = createResponse.data;
       await backendAPI.activateRoom(roomId);
 
@@ -287,9 +298,38 @@ export const RoomCreationModal = ({ isOpen, onClose, onRoomCreated }: Props) => 
               </div>
 
               {selectedExam ? (
-                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
-                  Selected: <span className="font-semibold text-slate-900">{selectedExam.examName}</span> in{" "}
-                  <span className="font-semibold text-slate-900">{selectedExam.courseName}</span>
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+                  <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-700">
+                    <p>
+                      Selected: <span className="font-semibold text-slate-900">{selectedExam.examName}</span> in{" "}
+                      <span className="font-semibold text-slate-900">{selectedExam.courseName}</span>
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                        {selectedExam.enableAiProctoring ? "AI enabled" : "AI off"}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                        {selectedExam.enableManualProctoring ? "Manual enabled" : "Manual off"}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                        {selectedExam.autoSubmitOnWarningLimit
+                          ? `Ends at ${selectedExam.maxWarnings} alerts`
+                          : "No auto-end"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <span className="text-sm font-semibold text-slate-900">Room capacity</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={roomCapacity}
+                      onChange={(event) => setRoomCapacity(Number(event.target.value) || 1)}
+                      className="input-field mt-3"
+                    />
+                  </label>
                 </div>
               ) : null}
             </div>

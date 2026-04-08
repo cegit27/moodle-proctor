@@ -8,6 +8,7 @@
 
 export interface CreateRoomRequest {
   examId: number;
+  capacity?: number;
 }
 
 export interface JoinRoomRequest {

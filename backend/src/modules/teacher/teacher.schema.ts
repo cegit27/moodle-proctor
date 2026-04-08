@@ -42,19 +42,70 @@ export interface GetStatsQuery {
   examId?: number;
 }
 
+export interface TeacherExamQuestion {
+  id: string;
+  prompt: string;
+  type: string;
+  marks: number;
+  options: string[];
+  answer: string | null;
+}
+
+export interface TeacherExamQuestionPaperUpload {
+  fileName: string;
+  mimeType: string;
+  contentBase64: string;
+}
+
+export interface UpsertTeacherExamRequest {
+  moodleCourseId?: number | null;
+  moodleCourseModuleId?: number | null;
+  examName: string;
+  courseName: string;
+  description?: string | null;
+  instructions?: string | null;
+  durationMinutes: number;
+  maxWarnings: number;
+  roomCapacity: number;
+  enableAiProctoring: boolean;
+  enableManualProctoring: boolean;
+  autoSubmitOnWarningLimit: boolean;
+  captureSnapshots: boolean;
+  allowStudentRejoin: boolean;
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
+  questions: TeacherExamQuestion[];
+  questionPaper?: TeacherExamQuestionPaperUpload | null;
+  removeQuestionPaper?: boolean;
+}
+
 // ============================================================================
 // Response Types
 // ============================================================================
 
 export interface TeacherExam {
   id: number;
-  moodleCourseId: number;
-  moodleCourseModuleId: number;
+  moodleCourseId: number | null;
+  moodleCourseModuleId: number | null;
   examName: string;
   courseName: string;
+  description: string | null;
+  instructions: string | null;
   durationMinutes: number;
   maxWarnings: number;
+  roomCapacity: number;
+  enableAiProctoring: boolean;
+  enableManualProctoring: boolean;
+  autoSubmitOnWarningLimit: boolean;
+  captureSnapshots: boolean;
+  allowStudentRejoin: boolean;
+  questionPaperPath: string | null;
+  scheduledStartAt: Date | null;
+  scheduledEndAt: Date | null;
+  questions: TeacherExamQuestion[];
+  createdByTeacherId: number | null;
   createdAt: Date;
+  updatedAt: Date;
   // Aggregated stats
   totalAttempts?: number;
   activeAttempts?: number;

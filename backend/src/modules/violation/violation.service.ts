@@ -125,18 +125,21 @@ export class ViolationService {
       );
 
       // Get updated violation count
-      const countResult = await client.query<{ count: string; max_warnings: number }>(
-        `SELECT ea.violation_count::text as count, e.max_warnings
+      const countResult = await client.query<{ count: string; max_warnings: number; auto_submit_on_warning_limit: boolean }>(
+        `SELECT
+           ea.violation_count::text as count,
+           e.max_warnings,
+           e.auto_submit_on_warning_limit
          FROM exam_attempts ea
          JOIN exams e ON ea.exam_id = e.id
          WHERE ea.id = $1`,
         [attemptId]
       );
 
-      const { count, max_warnings } = countResult.rows[0];
+      const { count, max_warnings, auto_submit_on_warning_limit } = countResult.rows[0];
       const violationCount = parseInt(count, 10);
       const threshold = max_warnings;
-      const shouldAutoSubmit = violationCount >= threshold;
+      const shouldAutoSubmit = Boolean(auto_submit_on_warning_limit) && violationCount >= threshold;
 
       await client.query('COMMIT');
 
@@ -211,8 +214,8 @@ export class ViolationService {
    * Check violation count for an attempt
    */
   async checkViolationCount(attemptId: number): Promise<ViolationCheckResponse> {
-    const result = await this.pg.query<{ count: string; max_warnings: number }>(
-      `SELECT ea.violation_count::text as count, e.max_warnings
+    const result = await this.pg.query<{ count: string; max_warnings: number; auto_submit_on_warning_limit: boolean }>(
+      `SELECT ea.violation_count::text as count, e.max_warnings, e.auto_submit_on_warning_limit
       FROM exam_attempts ea
       JOIN exams e ON ea.exam_id = e.id
       WHERE ea.id = $1`,
@@ -230,7 +233,7 @@ export class ViolationService {
       };
     }
 
-    const { count, max_warnings } = result.rows[0];
+    const { count, max_warnings, auto_submit_on_warning_limit } = result.rows[0];
     const violationCount = parseInt(count, 10);
 
     return {
@@ -238,7 +241,7 @@ export class ViolationService {
       data: {
         count: violationCount,
         threshold: max_warnings,
-        shouldAutoSubmit: violationCount >= max_warnings
+        shouldAutoSubmit: Boolean(auto_submit_on_warning_limit) && violationCount >= max_warnings
       }
     };
   }

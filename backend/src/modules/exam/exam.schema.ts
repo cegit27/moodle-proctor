@@ -26,12 +26,28 @@ export interface ExamResumeRequest {
 
 export interface ExamDetails {
   id: number;
-  moodleCourseId: number;
-  moodleCourseModuleId: number;
+  moodleCourseId: number | null;
+  moodleCourseModuleId: number | null;
   examName: string;
   courseName: string;
+  description?: string | null;
+  instructions?: string | null;
   durationMinutes: number;
   maxWarnings: number;
+  roomCapacity?: number;
+  enableAiProctoring?: boolean;
+  enableManualProctoring?: boolean;
+  autoSubmitOnWarningLimit?: boolean;
+  captureSnapshots?: boolean;
+  allowStudentRejoin?: boolean;
+  questions?: Array<{
+    id: string;
+    prompt: string;
+    type: string;
+    marks: number;
+    options: string[];
+    answer: string | null;
+  }>;
   questionPaperPath: string | null;
 }
 
@@ -76,7 +92,7 @@ export interface ExamSubmitResponse {
 }
 
 export interface QuestionSummary {
-  id: number;
+  id: number | string;
   questionNumber: number;
   text: string;
   type: string;
@@ -100,12 +116,28 @@ export interface QuestionsSummaryResponse {
 
 export interface ExamRow {
   id: number;
-  moodle_course_id: number;
-  moodle_course_module_id: number;
+  moodle_course_id: number | null;
+  moodle_course_module_id: number | null;
   exam_name: string;
   course_name: string;
+  description?: string | null;
+  instructions?: string | null;
   duration_minutes: number;
   max_warnings: number;
+  room_capacity?: number;
+  ai_proctoring_enabled?: boolean;
+  manual_proctoring_enabled?: boolean;
+  auto_submit_on_warning_limit?: boolean;
+  capture_snapshots?: boolean;
+  allow_student_rejoin?: boolean;
+  questions_json?: Array<{
+    id: string;
+    prompt: string;
+    type: string;
+    marks: number;
+    options: string[];
+    answer: string | null;
+  }> | null;
   question_paper_path: string;
 }
 

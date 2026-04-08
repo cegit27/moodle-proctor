@@ -111,16 +111,67 @@ export interface TeacherReport {
 
 export interface TeacherExam {
   id: number;
-  moodleCourseId: number;
-  moodleCourseModuleId: number;
+  moodleCourseId: number | null;
+  moodleCourseModuleId: number | null;
   examName: string;
   courseName: string;
+  description: string | null;
+  instructions: string | null;
   durationMinutes: number;
   maxWarnings: number;
+  roomCapacity: number;
+  enableAiProctoring: boolean;
+  enableManualProctoring: boolean;
+  autoSubmitOnWarningLimit: boolean;
+  captureSnapshots: boolean;
+  allowStudentRejoin: boolean;
+  questionPaperPath: string | null;
+  scheduledStartAt: string | null;
+  scheduledEndAt: string | null;
+  questions: TeacherExamQuestion[];
+  createdByTeacherId: number | null;
   createdAt: string;
+  updatedAt: string;
   totalAttempts?: number;
   activeAttempts?: number;
   completedAttempts?: number;
+}
+
+export interface TeacherExamQuestion {
+  id: string;
+  prompt: string;
+  type: string;
+  marks: number;
+  options: string[];
+  answer: string | null;
+}
+
+export interface TeacherExamQuestionPaperUpload {
+  fileName: string;
+  mimeType: string;
+  contentBase64: string;
+}
+
+export interface TeacherExamPayload {
+  moodleCourseId?: number | null;
+  moodleCourseModuleId?: number | null;
+  examName: string;
+  courseName: string;
+  description?: string | null;
+  instructions?: string | null;
+  durationMinutes: number;
+  maxWarnings: number;
+  roomCapacity: number;
+  enableAiProctoring: boolean;
+  enableManualProctoring: boolean;
+  autoSubmitOnWarningLimit: boolean;
+  captureSnapshots: boolean;
+  allowStudentRejoin: boolean;
+  scheduledStartAt?: string | null;
+  scheduledEndAt?: string | null;
+  questions: TeacherExamQuestion[];
+  questionPaper?: TeacherExamQuestionPaperUpload | null;
+  removeQuestionPaper?: boolean;
 }
 
 export interface ProctoringRoomSummary {
@@ -172,6 +223,7 @@ class BackendAPIClient {
   private baseUrl: string;
   private token: string | null = null;
   private tokenRecoveryPromise: Promise<string | null> | null = null;
+  private isHandlingUnauthorized = false;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -191,6 +243,26 @@ class BackendAPIClient {
     this.token = null;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('auth_token');
+    }
+  }
+
+  private async handleUnauthorized() {
+    this.clearToken();
+
+    if (typeof window === 'undefined' || this.isHandlingUnauthorized) {
+      return;
+    }
+
+    this.isHandlingUnauthorized = true;
+
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(() => null);
+    } finally {
+      const nextPath = `${window.location.pathname}${window.location.search}`;
+      window.location.href = `/login?next=${encodeURIComponent(nextPath || '/dashboard/monitoring')}`;
     }
   }
 
@@ -262,6 +334,9 @@ class BackendAPIClient {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      if (response.status === 401) {
+        await this.handleUnauthorized();
+      }
       const error = data as BackendError;
       throw new Error(error.error || 'Request failed');
     }
@@ -316,6 +391,35 @@ class BackendAPIClient {
   async getExam(examId: number) {
     return this.request<{ success: true; data: { exams: TeacherExam[] } }>(
       `/api/teacher/exams/${examId}`
+    );
+  }
+
+  async createExam(payload: TeacherExamPayload) {
+    return this.request<{ success: true; data: { exams: TeacherExam[]; total: number } }>(
+      '/api/teacher/exams',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async updateExam(examId: number, payload: TeacherExamPayload) {
+    return this.request<{ success: true; data: { exams: TeacherExam[]; total: number } }>(
+      `/api/teacher/exams/${examId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
+  async deleteExam(examId: number) {
+    return this.request<{ success: true; data: { examId: number; deleted: boolean } }>(
+      `/api/teacher/exams/${examId}`,
+      {
+        method: 'DELETE',
+      }
     );
   }
 
@@ -429,11 +533,21 @@ class BackendAPIClient {
     );
   }
 
-  async createRoom(examId: number) {
+  async createRoom(examId: number, options?: { capacity?: number }) {
     return this.request<{ success: true; data: CreatedRoomDetails }>('/api/room/create', {
       method: 'POST',
-      body: JSON.stringify({ examId }),
+      body: JSON.stringify({ examId, capacity: options?.capacity }),
     });
+  }
+
+  async updateRoom(roomId: number, payload: { capacity: number }) {
+    return this.request<{ success: true; data: { id: number; capacity: number } }>(
+      `/api/room/${roomId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
   }
 
   async activateRoom(roomId: number) {

@@ -3,7 +3,11 @@
 // Data retrieval for teacher dashboard
 // ============================================================================
 
+import { promises as fs } from 'fs';
+import path from 'path';
+import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
+import config from '../../config';
 import type {
   TeacherExam,
   TeacherExamListResponse,
@@ -18,7 +22,10 @@ import type {
   ListAttemptsQuery,
   ListStudentsQuery,
   ListReportsQuery,
-  GetStatsQuery
+  GetStatsQuery,
+  TeacherExamQuestion,
+  TeacherExamQuestionPaperUpload,
+  UpsertTeacherExamRequest
 } from './teacher.schema';
 
 export class TeacherService {
@@ -101,6 +108,106 @@ export class TeacherService {
     };
   }
 
+  private readonly examSelectFields = `
+    e.id,
+    e.moodle_course_id as "moodleCourseId",
+    e.moodle_course_module_id as "moodleCourseModuleId",
+    e.exam_name as "examName",
+    e.course_name as "courseName",
+    e.description,
+    e.instructions,
+    e.duration_minutes as "durationMinutes",
+    e.max_warnings as "maxWarnings",
+    e.room_capacity as "roomCapacity",
+    e.ai_proctoring_enabled as "enableAiProctoring",
+    e.manual_proctoring_enabled as "enableManualProctoring",
+    e.auto_submit_on_warning_limit as "autoSubmitOnWarningLimit",
+    e.capture_snapshots as "captureSnapshots",
+    e.allow_student_rejoin as "allowStudentRejoin",
+    e.question_paper_path as "questionPaperPath",
+    e.questions_json as questions,
+    e.scheduled_start_at as "scheduledStartAt",
+    e.scheduled_end_at as "scheduledEndAt",
+    e.created_by_teacher_id as "createdByTeacherId",
+    e.created_at as "createdAt",
+    e.updated_at as "updatedAt"
+  `;
+
+  private sanitizeQuestionText(value: string): string {
+    return value.replace(/\s+/g, ' ').trim();
+  }
+
+  private normalizeQuestions(questions: TeacherExamQuestion[] = []): TeacherExamQuestion[] {
+    return questions
+      .map((question, index) => ({
+        id: question.id || `question-${index + 1}`,
+        prompt: this.sanitizeQuestionText(question.prompt || ''),
+        type: this.sanitizeQuestionText(question.type || 'short_answer') || 'short_answer',
+        marks: Math.max(0, Number(question.marks) || 0),
+        options: Array.isArray(question.options)
+          ? question.options
+              .map(option => this.sanitizeQuestionText(option || ''))
+              .filter(Boolean)
+          : [],
+        answer: question.answer ? this.sanitizeQuestionText(question.answer) : null
+      }))
+      .filter(question => Boolean(question.prompt));
+  }
+
+  private sanitizeFilename(fileName: string): string {
+    return fileName
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  private async saveQuestionPaper(upload: TeacherExamQuestionPaperUpload): Promise<string> {
+    const safeFileName = this.sanitizeFilename(upload.fileName || 'question-paper.pdf') || 'question-paper.pdf';
+    const extension = path.extname(safeFileName) || '.pdf';
+
+    if (extension.toLowerCase() !== '.pdf') {
+      throw new Error('Question paper must be a PDF file');
+    }
+
+    const rawBase64 = (upload.contentBase64 || '').replace(/^data:.*?;base64,/, '');
+    const fileBuffer = Buffer.from(rawBase64, 'base64');
+
+    if (!fileBuffer.length) {
+      throw new Error('Question paper upload is empty');
+    }
+
+    if (fileBuffer.length > config.upload.maxFileSize) {
+      throw new Error(`Question paper exceeds ${config.upload.maxFileSize} byte upload limit`);
+    }
+
+    const uploadDir = path.resolve(process.cwd(), config.upload.dir, 'exams');
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    const baseName = path.basename(safeFileName, extension) || 'question-paper';
+    const storedFileName = `${Date.now()}-${baseName}-${randomUUID().slice(0, 8)}${extension}`;
+    const absolutePath = path.join(uploadDir, storedFileName);
+    await fs.writeFile(absolutePath, fileBuffer);
+
+    return path.relative(process.cwd(), absolutePath).replace(/\\/g, '/');
+  }
+
+  private async removeQuestionPaper(filePath: string | null | undefined): Promise<void> {
+    if (!filePath) {
+      return;
+    }
+
+    const absolutePath = path.resolve(process.cwd(), filePath);
+
+    try {
+      await fs.unlink(absolutePath);
+    } catch (error: any) {
+      if (error?.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+
   // ==========================================================================
   // Exams
   // ==========================================================================
@@ -119,14 +226,7 @@ export class TeacherService {
 
     const query = `
       SELECT
-        e.id,
-        e.moodle_course_id as "moodleCourseId",
-        e.moodle_course_module_id as "moodleCourseModuleId",
-        e.exam_name as "examName",
-        e.course_name as "courseName",
-        e.duration_minutes as "durationMinutes",
-        e.max_warnings as "maxWarnings",
-        e.created_at as "createdAt",
+        ${this.examSelectFields},
         COUNT(DISTINCT ea.id) FILTER (WHERE ea.status = 'in_progress') as "activeAttempts",
         COUNT(DISTINCT ea.id) FILTER (WHERE ea.status = 'submitted') as "completedAttempts",
         COUNT(DISTINCT ea.id) as "totalAttempts"
@@ -134,7 +234,7 @@ export class TeacherService {
       LEFT JOIN exam_attempts ea ON e.id = ea.exam_id AND ea.hidden_at IS NULL
       ${whereClause}
       GROUP BY e.id
-      ORDER BY e.created_at DESC
+      ORDER BY e.updated_at DESC, e.created_at DESC
     `;
 
     const result = await this.pg.query(query, params);
@@ -154,14 +254,7 @@ export class TeacherService {
   async getExam(examId: number): Promise<TeacherExamListResponse> {
     const result = await this.pg.query(
       `SELECT
-        e.id,
-        e.moodle_course_id as "moodleCourseId",
-        e.moodle_course_module_id as "moodleCourseModuleId",
-        e.exam_name as "examName",
-        e.course_name as "courseName",
-        e.duration_minutes as "durationMinutes",
-        e.max_warnings as "maxWarnings",
-        e.created_at as "createdAt",
+        ${this.examSelectFields},
         COUNT(DISTINCT ea.id) FILTER (WHERE ea.status = 'in_progress') as "activeAttempts",
         COUNT(DISTINCT ea.id) FILTER (WHERE ea.status = 'submitted') as "completedAttempts",
         COUNT(DISTINCT ea.id) as "totalAttempts"
@@ -181,6 +274,185 @@ export class TeacherService {
       data: {
         exams: [this.mapExamRow(result.rows[0])],
         total: 1
+      }
+    };
+  }
+
+  async createExam(payload: UpsertTeacherExamRequest, teacherId: number): Promise<TeacherExamListResponse> {
+    const questions = this.normalizeQuestions(payload.questions);
+    const questionPaperPath = payload.questionPaper
+      ? await this.saveQuestionPaper(payload.questionPaper)
+      : null;
+
+    const result = await this.pg.query(
+      `INSERT INTO exams (
+         moodle_course_id,
+         moodle_course_module_id,
+         exam_name,
+         course_name,
+         description,
+         instructions,
+         duration_minutes,
+         max_warnings,
+         room_capacity,
+         ai_proctoring_enabled,
+         manual_proctoring_enabled,
+         auto_submit_on_warning_limit,
+         capture_snapshots,
+         allow_student_rejoin,
+         question_paper_path,
+         questions_json,
+         scheduled_start_at,
+         scheduled_end_at,
+         created_by_teacher_id
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+         $11, $12, $13, $14, $15, $16::jsonb, $17, $18, $19
+       )
+       RETURNING id`,
+      [
+        payload.moodleCourseId ?? null,
+        payload.moodleCourseModuleId ?? null,
+        payload.examName,
+        payload.courseName,
+        payload.description ?? null,
+        payload.instructions ?? null,
+        payload.durationMinutes,
+        payload.maxWarnings,
+        payload.roomCapacity,
+        payload.enableAiProctoring,
+        payload.enableManualProctoring,
+        payload.autoSubmitOnWarningLimit,
+        payload.captureSnapshots,
+        payload.allowStudentRejoin,
+        questionPaperPath,
+        JSON.stringify(questions),
+        payload.scheduledStartAt ?? null,
+        payload.scheduledEndAt ?? null,
+        teacherId
+      ]
+    );
+
+    await this.pg.query(
+      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details)
+       VALUES ($1, 'exam_create', 'exam', $2, $3)`,
+      [teacherId, result.rows[0].id, JSON.stringify({ examName: payload.examName })]
+    );
+
+    return this.getExam(result.rows[0].id);
+  }
+
+  async updateExam(examId: number, payload: UpsertTeacherExamRequest, teacherId: number): Promise<TeacherExamListResponse> {
+    const existingResult = await this.pg.query<{ questionPaperPath: string | null }>(
+      `SELECT question_paper_path as "questionPaperPath"
+       FROM exams
+       WHERE id = $1`,
+      [examId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      throw new Error('Exam not found');
+    }
+
+    let questionPaperPath = existingResult.rows[0].questionPaperPath;
+
+    if (payload.questionPaper) {
+      questionPaperPath = await this.saveQuestionPaper(payload.questionPaper);
+    } else if (payload.removeQuestionPaper) {
+      questionPaperPath = null;
+    }
+
+    const questions = this.normalizeQuestions(payload.questions);
+
+    await this.pg.query(
+      `UPDATE exams
+       SET moodle_course_id = $2,
+           moodle_course_module_id = $3,
+           exam_name = $4,
+           course_name = $5,
+           description = $6,
+           instructions = $7,
+           duration_minutes = $8,
+           max_warnings = $9,
+           room_capacity = $10,
+           ai_proctoring_enabled = $11,
+           manual_proctoring_enabled = $12,
+           auto_submit_on_warning_limit = $13,
+           capture_snapshots = $14,
+           allow_student_rejoin = $15,
+           question_paper_path = $16,
+           questions_json = $17::jsonb,
+           scheduled_start_at = $18,
+           scheduled_end_at = $19,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [
+        examId,
+        payload.moodleCourseId ?? null,
+        payload.moodleCourseModuleId ?? null,
+        payload.examName,
+        payload.courseName,
+        payload.description ?? null,
+        payload.instructions ?? null,
+        payload.durationMinutes,
+        payload.maxWarnings,
+        payload.roomCapacity,
+        payload.enableAiProctoring,
+        payload.enableManualProctoring,
+        payload.autoSubmitOnWarningLimit,
+        payload.captureSnapshots,
+        payload.allowStudentRejoin,
+        questionPaperPath,
+        JSON.stringify(questions),
+        payload.scheduledStartAt ?? null,
+        payload.scheduledEndAt ?? null
+      ]
+    );
+
+    if (
+      existingResult.rows[0].questionPaperPath &&
+      existingResult.rows[0].questionPaperPath !== questionPaperPath
+    ) {
+      await this.removeQuestionPaper(existingResult.rows[0].questionPaperPath);
+    }
+
+    await this.pg.query(
+      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details)
+       VALUES ($1, 'exam_update', 'exam', $2, $3)`,
+      [teacherId, examId, JSON.stringify({ examName: payload.examName })]
+    );
+
+    return this.getExam(examId);
+  }
+
+  async deleteExam(examId: number, teacherId: number) {
+    const result = await this.pg.query<{ questionPaperPath: string | null }>(
+      `DELETE FROM exams
+       WHERE id = $1
+       RETURNING question_paper_path as "questionPaperPath"`,
+      [examId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Exam not found');
+    }
+
+    if (result.rows[0].questionPaperPath) {
+      await this.removeQuestionPaper(result.rows[0].questionPaperPath);
+    }
+
+    await this.pg.query(
+      `INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details)
+       VALUES ($1, 'exam_delete', 'exam', $2, $3)`,
+      [teacherId, examId, JSON.stringify({ deleted: true })]
+    );
+
+    return {
+      success: true as const,
+      data: {
+        examId,
+        deleted: true
       }
     };
   }
@@ -883,13 +1155,27 @@ export class TeacherService {
   private mapExamRow(row: any): TeacherExam {
     return {
       id: row.id,
-      moodleCourseId: row.moodleCourseId,
-      moodleCourseModuleId: row.moodleCourseModuleId,
+      moodleCourseId: row.moodleCourseId === null ? null : Number(row.moodleCourseId),
+      moodleCourseModuleId: row.moodleCourseModuleId === null ? null : Number(row.moodleCourseModuleId),
       examName: row.examName,
       courseName: row.courseName,
+      description: row.description ?? null,
+      instructions: row.instructions ?? null,
       durationMinutes: parseInt(row.durationMinutes, 10),
       maxWarnings: parseInt(row.maxWarnings, 10),
+      roomCapacity: parseInt(row.roomCapacity, 10),
+      enableAiProctoring: Boolean(row.enableAiProctoring),
+      enableManualProctoring: Boolean(row.enableManualProctoring),
+      autoSubmitOnWarningLimit: Boolean(row.autoSubmitOnWarningLimit),
+      captureSnapshots: Boolean(row.captureSnapshots),
+      allowStudentRejoin: Boolean(row.allowStudentRejoin),
+      questionPaperPath: row.questionPaperPath ?? null,
+      scheduledStartAt: row.scheduledStartAt ?? null,
+      scheduledEndAt: row.scheduledEndAt ?? null,
+      questions: Array.isArray(row.questions) ? row.questions : [],
+      createdByTeacherId: row.createdByTeacherId === null ? null : Number(row.createdByTeacherId),
       createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
       totalAttempts: parseInt(row.totalAttempts || '0', 10),
       activeAttempts: parseInt(row.activeAttempts || '0', 10),
       completedAttempts: parseInt(row.completedAttempts || '0', 10)

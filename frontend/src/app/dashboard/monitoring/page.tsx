@@ -7,6 +7,7 @@ import {
   FiCopy,
   FiLoader,
   FiPlus,
+  FiSave,
   FiSlash,
   FiTrash2,
   FiUsers,
@@ -72,6 +73,8 @@ export default function LiveMonitoringPage() {
   const [isLoadingViolations, setIsLoadingViolations] = useState(false);
   const [roomStudents, setRoomStudents] = useState<RoomMonitoringStudent[]>([]);
   const [isLoadingRoomStudents, setIsLoadingRoomStudents] = useState(false);
+  const [roomCapacityDraft, setRoomCapacityDraft] = useState<number>(15);
+  const [isSavingRoomCapacity, setIsSavingRoomCapacity] = useState(false);
   const hasHydratedRoom = useRef(false);
 
   const currentRoom = useMemo(
@@ -116,6 +119,12 @@ export default function LiveMonitoringPage() {
     setSelectedStudent(null);
     setSelectedViolations([]);
   }, [currentRoom?.id]);
+
+  useEffect(() => {
+    if (currentRoom) {
+      setRoomCapacityDraft(currentRoom.capacity);
+    }
+  }, [currentRoom]);
 
   const fetchRoomStudents = useCallback(async () => {
     if (!currentRoom) {
@@ -326,6 +335,26 @@ export default function LiveMonitoringPage() {
     }
   }, [currentRoomCode, refetchRooms]);
 
+  const handleSaveRoomCapacity = useCallback(async () => {
+    if (!currentRoom) {
+      return;
+    }
+
+    setIsSavingRoomCapacity(true);
+    setRoomActionError(null);
+
+    try {
+      await backendAPI.updateRoom(currentRoom.id, {
+        capacity: roomCapacityDraft,
+      });
+      await refetchRooms();
+    } catch (error) {
+      setRoomActionError(error instanceof Error ? error.message : "Failed to update room capacity");
+    } finally {
+      setIsSavingRoomCapacity(false);
+    }
+  }, [currentRoom, roomCapacityDraft, refetchRooms]);
+
   const launchLink = currentRoom
     ? getStudentLaunchLink(currentRoom.roomCode, currentRoom.examName, currentRoom.courseName)
     : "";
@@ -396,6 +425,29 @@ export default function LiveMonitoringPage() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
+                  <div className="flex items-center gap-2 rounded-[12px] border border-slate-200 bg-white px-2 py-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={roomCapacityDraft}
+                      onChange={(event) => setRoomCapacityDraft(Number(event.target.value) || 1)}
+                      className="w-20 rounded-[10px] border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveRoomCapacity()}
+                      disabled={isSavingRoomCapacity}
+                      className="btn-secondary"
+                    >
+                      {isSavingRoomCapacity ? (
+                        <FiLoader className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <FiSave className="h-4 w-4" />
+                      )}
+                      Save seats
+                    </button>
+                  </div>
                   <button type="button" onClick={() => handleCopy(currentRoom.roomCode, "code")} className="btn-secondary">
                     <FiCopy className="h-4 w-4" />
                     {copiedField === "code" ? "Code copied" : "Copy room code"}

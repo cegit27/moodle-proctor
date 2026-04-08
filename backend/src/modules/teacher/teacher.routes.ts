@@ -8,7 +8,111 @@ import { createTeacherService } from './teacher.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireRole } from '../../websocket/ws.auth';
 import type { FastifyInstance } from 'fastify';
-import type { ListAttemptsQuery, ListStudentsQuery, ListReportsQuery, GetStatsQuery } from './teacher.schema';
+import type {
+  GetStatsQuery,
+  ListAttemptsQuery,
+  ListReportsQuery,
+  ListStudentsQuery,
+  TeacherExamQuestion,
+  UpsertTeacherExamRequest
+} from './teacher.schema';
+
+function parseOptionalNumber(value: unknown, fieldName: string): number | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === '') {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${fieldName} must be a number`);
+  }
+
+  return parsed;
+}
+
+function parseQuestions(value: unknown): TeacherExamQuestion[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((question, index) => {
+    const current = (question || {}) as Record<string, unknown>;
+
+    return {
+      id: typeof current.id === 'string' && current.id ? current.id : `question-${index + 1}`,
+      prompt: typeof current.prompt === 'string' ? current.prompt : '',
+      type: typeof current.type === 'string' ? current.type : 'short_answer',
+      marks: Number(current.marks) || 0,
+      options: Array.isArray(current.options)
+        ? current.options.map(option => String(option))
+        : [],
+      answer: typeof current.answer === 'string' && current.answer ? current.answer : null
+    };
+  });
+}
+
+function parseExamPayload(body: Record<string, unknown>): UpsertTeacherExamRequest {
+  const examName = typeof body.examName === 'string' ? body.examName.trim() : '';
+  const courseName = typeof body.courseName === 'string' ? body.courseName.trim() : '';
+  const durationMinutes = Number(body.durationMinutes);
+  const maxWarnings = Number(body.maxWarnings);
+  const roomCapacity = Number(body.roomCapacity);
+
+  if (!examName) {
+    throw new Error('Exam name is required');
+  }
+
+  if (!courseName) {
+    throw new Error('Course name is required');
+  }
+
+  if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    throw new Error('Duration must be greater than 0 minutes');
+  }
+
+  if (!Number.isFinite(maxWarnings) || maxWarnings < 0) {
+    throw new Error('Warning limit must be 0 or greater');
+  }
+
+  if (!Number.isFinite(roomCapacity) || roomCapacity <= 0) {
+    throw new Error('Room capacity must be greater than 0');
+  }
+
+  return {
+    moodleCourseId: parseOptionalNumber(body.moodleCourseId, 'Moodle course ID'),
+    moodleCourseModuleId: parseOptionalNumber(body.moodleCourseModuleId, 'Moodle course module ID'),
+    examName,
+    courseName,
+    description: typeof body.description === 'string' ? body.description.trim() : null,
+    instructions: typeof body.instructions === 'string' ? body.instructions.trim() : null,
+    durationMinutes,
+    maxWarnings,
+    roomCapacity,
+    enableAiProctoring: body.enableAiProctoring !== false,
+    enableManualProctoring: body.enableManualProctoring !== false,
+    autoSubmitOnWarningLimit: body.autoSubmitOnWarningLimit !== false,
+    captureSnapshots: body.captureSnapshots !== false,
+    allowStudentRejoin: body.allowStudentRejoin !== false,
+    scheduledStartAt:
+      typeof body.scheduledStartAt === 'string' && body.scheduledStartAt ? body.scheduledStartAt : null,
+    scheduledEndAt:
+      typeof body.scheduledEndAt === 'string' && body.scheduledEndAt ? body.scheduledEndAt : null,
+    questions: parseQuestions(body.questions),
+    questionPaper:
+      body.questionPaper && typeof body.questionPaper === 'object'
+        ? {
+            fileName: String((body.questionPaper as any).fileName || 'question-paper.pdf'),
+            mimeType: String((body.questionPaper as any).mimeType || 'application/pdf'),
+            contentBase64: String((body.questionPaper as any).contentBase64 || '')
+          }
+        : null,
+    removeQuestionPaper: body.removeQuestionPaper === true
+  };
+}
 
 // ============================================================================
 // Teacher Routes Plugin
@@ -62,6 +166,93 @@ export default fp(async (fastify: FastifyInstance) => {
 
     const result = await teacherService.getExam(examId);
     return reply.send(result);
+  });
+
+  fastify.post('/api/teacher/exams', {
+    onRequest: [authMiddleware]
+  }, async (request, reply) => {
+    const user = (request as any).user;
+    requireRole(user, ['teacher']);
+
+    try {
+      const payload = parseExamPayload((request.body || {}) as Record<string, unknown>);
+      const result = await teacherService.createExam(payload, user.id);
+      return reply.code(201).send(result);
+    } catch (error) {
+      const message = (error as Error).message || 'Invalid exam payload';
+      return reply.code(400).send({
+        success: false,
+        error: message
+      });
+    }
+  });
+
+  fastify.put('/api/teacher/exams/:id', {
+    onRequest: [authMiddleware]
+  }, async (request, reply) => {
+    const user = (request as any).user;
+    requireRole(user, ['teacher']);
+
+    const examId = parseInt((request.params as any).id, 10);
+
+    if (isNaN(examId)) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid exam ID'
+      });
+    }
+
+    try {
+      const payload = parseExamPayload((request.body || {}) as Record<string, unknown>);
+      const result = await teacherService.updateExam(examId, payload, user.id);
+      return reply.send(result);
+    } catch (error) {
+      const message = (error as Error).message || 'Unable to update exam';
+
+      if (message === 'Exam not found') {
+        return reply.code(404).send({
+          success: false,
+          error: message
+        });
+      }
+
+      return reply.code(400).send({
+        success: false,
+        error: message
+      });
+    }
+  });
+
+  fastify.delete('/api/teacher/exams/:id', {
+    onRequest: [authMiddleware]
+  }, async (request, reply) => {
+    const user = (request as any).user;
+    requireRole(user, ['teacher']);
+
+    const examId = parseInt((request.params as any).id, 10);
+
+    if (isNaN(examId)) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Invalid exam ID'
+      });
+    }
+
+    try {
+      const result = await teacherService.deleteExam(examId, user.id);
+      return reply.send(result);
+    } catch (error) {
+      const message = (error as Error).message || 'Unable to delete exam';
+
+      if (message === 'Exam not found') {
+        return reply.code(404).send({
+          success: false,
+          error: message
+        });
+      }
+
+      throw error;
+    }
   });
 
   // ==========================================================================

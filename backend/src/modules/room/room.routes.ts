@@ -57,7 +57,8 @@ export default fp(async (fastify: FastifyInstance) => {
       body: {
         type: 'object',
         properties: {
-          examId: { type: 'number' }
+          examId: { type: 'number' },
+          capacity: { type: 'number', minimum: 1, maximum: 100 }
         },
         required: ['examId']
       }
@@ -70,7 +71,8 @@ export default fp(async (fastify: FastifyInstance) => {
       try {
         const room = await roomService.createRoom({
           examId: body.examId,
-          teacherId
+          teacherId,
+          capacity: body.capacity
         });
 
         // Get exam details for response

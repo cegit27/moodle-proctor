@@ -14,6 +14,10 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
     title: "Monitoring",
     subtitle: "Create a room, share the student link, and watch the live session."
   },
+  "/dashboard/exams": {
+    title: "Exams",
+    subtitle: "Create exams, upload question papers, and adjust proctoring settings."
+  },
   "/dashboard/alerts": {
     title: "Alerts",
     subtitle: "Review flagged attempts and follow up on higher-risk sessions."

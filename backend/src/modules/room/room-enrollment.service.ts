@@ -32,6 +32,11 @@ export interface RoomEnrollmentContext {
   courseName: string
   durationMinutes: number
   maxWarnings: number
+  enableAiProctoring: boolean
+  enableManualProctoring: boolean
+  autoSubmitOnWarningLimit: boolean
+  captureSnapshots: boolean
+  allowStudentRejoin: boolean
   questionPaperPath: string | null
   studentName: string
   studentEmail: string
@@ -139,6 +144,11 @@ export async function getRoomEnrollmentContext(
        e.course_name as "courseName",
        e.duration_minutes as "durationMinutes",
        e.max_warnings as "maxWarnings",
+       e.ai_proctoring_enabled as "enableAiProctoring",
+       e.manual_proctoring_enabled as "enableManualProctoring",
+       e.auto_submit_on_warning_limit as "autoSubmitOnWarningLimit",
+       e.capture_snapshots as "captureSnapshots",
+       e.allow_student_rejoin as "allowStudentRejoin",
        e.question_paper_path as "questionPaperPath",
        u.id,
        u.moodle_user_id as "moodleUserId",
@@ -175,6 +185,11 @@ export async function getRoomEnrollmentContext(
     courseName: row.courseName,
     durationMinutes: row.durationMinutes,
     maxWarnings: row.maxWarnings,
+    enableAiProctoring: Boolean(row.enableAiProctoring),
+    enableManualProctoring: Boolean(row.enableManualProctoring),
+    autoSubmitOnWarningLimit: Boolean(row.autoSubmitOnWarningLimit),
+    captureSnapshots: Boolean(row.captureSnapshots),
+    allowStudentRejoin: Boolean(row.allowStudentRejoin),
     questionPaperPath: row.questionPaperPath,
     studentName: row.studentName,
     studentEmail: row.studentEmail,

@@ -173,6 +173,7 @@ export interface RoomWithExamDetails extends Room {
 export interface CreateRoomParams {
   examId: number;
   teacherId: number;
+  capacity?: number;
 }
 
 export interface ActiveRoomSummary {
@@ -252,11 +253,11 @@ export class ProctoringRoomService {
    * Generates: unique room code (retries 3x on collision)
    */
   async createRoom(params: CreateRoomParams): Promise<Room> {
-    const { examId, teacherId } = params;
+    const { examId, teacherId, capacity: requestedCapacity } = params;
 
     // 1. Validate exam exists
     const examResult = await this.pg.query(
-      'SELECT id, exam_name FROM exams WHERE id = $1',
+      'SELECT id, exam_name, room_capacity FROM exams WHERE id = $1',
       [examId]
     );
 
@@ -293,7 +294,8 @@ export class ProctoringRoomService {
     );
 
     const enrolledCount = parseInt(capacityResult.rows[0].count, 10);
-    const capacity = 15; // Default capacity from design
+    const examCapacity = Number(examResult.rows[0].room_capacity) || 15;
+    const capacity = Math.max(1, Math.min(requestedCapacity || examCapacity, 100));
 
     if (enrolledCount >= capacity) {
       throw new CapacityExceededError(enrolledCount, capacity);
