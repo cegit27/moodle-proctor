@@ -9,7 +9,6 @@ import { VideoStream } from './VideoStream';
 const MAX_VISIBLE_SLOTS = 15;
 const SNAPSHOT_POLL_INTERVAL_MS = 500;
 const SNAPSHOT_STALE_THRESHOLD_MS = 3000;
-const CONNECTION_LOADING_TIMEOUT_MS = 5000;
 
 interface SnapshotFeed {
   feedId: string;
@@ -43,7 +42,6 @@ export const StudentsGrid = ({
   const hasAutoJoined = useRef(false);
   const previousRoomId = useRef<string | undefined>(undefined);
   const [snapshotFeeds, setSnapshotFeeds] = useState<SnapshotFeed[]>([]);
-  const [showConnectionLoading, setShowConnectionLoading] = useState(true);
   const snapshotSinceRef = useRef(0);
   const snapshotFetchInFlightRef = useRef(false);
 
@@ -68,7 +66,6 @@ export const StudentsGrid = ({
   useEffect(() => {
     if (!roomId) {
       setSnapshotFeeds([]);
-      setShowConnectionLoading(true);
       snapshotSinceRef.current = 0;
       snapshotFetchInFlightRef.current = false;
       return;
@@ -150,27 +147,6 @@ export const StudentsGrid = ({
   }, [backendUrl, roomId]);
 
   useEffect(() => {
-    if (!roomId) {
-      setShowConnectionLoading(true);
-      return;
-    }
-
-    if (isConnected || snapshotFeeds.length > 0 || videoStreams.length > 0) {
-      setShowConnectionLoading(false);
-      return;
-    }
-
-    setShowConnectionLoading(true);
-    const timerId = window.setTimeout(() => {
-      setShowConnectionLoading(false);
-    }, CONNECTION_LOADING_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [isConnected, roomId, snapshotFeeds.length, videoStreams.length]);
-
-  useEffect(() => {
     if (previousRoomId.current === undefined && roomId === undefined) {
       return;
     }
@@ -245,15 +221,8 @@ export const StudentsGrid = ({
       </div>
 
       <div className="px-5 py-5">
-        {showConnectionLoading && totalFeeds === 0 ? (
-          <div className="flex items-center justify-center gap-2 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-10 text-sm text-slate-600">
-            <FiLoader className="h-4 w-4 animate-spin" />
-            Connecting to the room...
-          </div>
-        ) : null}
-
-        {!showConnectionLoading && totalFeeds === 0 ? (
-          <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+        {totalFeeds === 0 ? (
+          <div className="flex min-h-[110px] items-center justify-center rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
             Waiting for students to join this room.
           </div>
         ) : null}
