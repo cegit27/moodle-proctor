@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server';
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL || 'http://localhost:5000';
 
+function isPdfLikeFile(file: File): boolean {
+  return (
+    file.type === 'application/pdf' ||
+    String(file.name || '').toLowerCase().endsWith('.pdf')
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -23,7 +30,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (file.type !== 'application/pdf') {
+    if (!isPdfLikeFile(file)) {
       return NextResponse.json(
         { error: 'Only PDF uploads are supported' },
         { status: 400 }
@@ -42,7 +49,7 @@ export async function POST(request: Request) {
         },
         body: JSON.stringify({
           fileName: file.name,
-          mimeType: file.type,
+          mimeType: file.type || 'application/pdf',
           fileBase64,
         }),
       }

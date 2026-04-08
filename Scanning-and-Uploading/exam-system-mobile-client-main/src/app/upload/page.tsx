@@ -62,6 +62,13 @@ function formatCountdown(expiresAt: number): string {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
+function isPdfLikeFile(file: File): boolean {
+  return (
+    file.type === 'application/pdf' ||
+    String(file.name || '').toLowerCase().endsWith('.pdf')
+  );
+}
+
 function buildReceiptFromSession(session: ScanUploadSession): UploadReceipt | null {
   if (
     !session.upload?.receiptId ||
@@ -101,6 +108,7 @@ export default function UploadPage() {
     [session]
   );
   const isUploaded = session?.status === 'uploaded';
+  const isRemoteUploadInProgress = session?.status === 'upload_in_progress';
 
   useEffect(() => {
     if (!sessionToken || !session) {
@@ -178,7 +186,7 @@ export default function UploadPage() {
   }
 
   const handleChooseFile = () => {
-    if (uploadStatus === 'uploading' || isExpired || isUploaded) {
+    if (uploadStatus === 'uploading' || isExpired || isUploaded || isRemoteUploadInProgress) {
       return;
     }
 
@@ -194,7 +202,7 @@ export default function UploadPage() {
       return;
     }
 
-    if (file.type !== 'application/pdf') {
+    if (!isPdfLikeFile(file)) {
       setErrorMsg('Please choose a PDF file.');
       setSelectedFile(null);
       return;
@@ -216,6 +224,7 @@ export default function UploadPage() {
       uploadStatus === 'uploading' ||
       isExpired ||
       isUploaded ||
+      isRemoteUploadInProgress ||
       !confirmedStudent
     ) {
       return;
@@ -428,10 +437,12 @@ export default function UploadPage() {
             <button
               type="button"
               onClick={handleChooseFile}
-              disabled={isUploading || isExpired || isUploaded}
+              disabled={isUploading || isExpired || isUploaded || isRemoteUploadInProgress}
               className="w-full rounded-2xl bg-accent text-bg py-4 px-5 font-display font-bold text-base disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isUploaded
+              {isRemoteUploadInProgress
+                ? 'Upload currently in progress'
+                : isUploaded
                 ? 'PDF already submitted'
                 : selectedFile
                 ? 'Choose a different PDF'
@@ -457,6 +468,13 @@ export default function UploadPage() {
           {errorMsg && (
             <div className="mt-4 rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
               {errorMsg}
+            </div>
+          )}
+
+          {isRemoteUploadInProgress && !isUploading && (
+            <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-text-primary">
+              This upload session is currently being processed. Wait a moment for the final status
+              before trying again.
             </div>
           )}
 
@@ -513,10 +531,19 @@ export default function UploadPage() {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!selectedFile || isUploading || isExpired || isUploaded || !confirmedStudent}
+          disabled={
+            !selectedFile ||
+            isUploading ||
+            isExpired ||
+            isUploaded ||
+            isRemoteUploadInProgress ||
+            !confirmedStudent
+          }
           className="w-full rounded-2xl bg-accent text-bg py-4 px-5 font-display font-bold text-base disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
         >
-          {isUploaded
+          {isRemoteUploadInProgress
+            ? 'Upload In Progress'
+            : isUploaded
             ? 'Answer Sheet Already Submitted'
             : isUploading
             ? 'Uploading PDF...'

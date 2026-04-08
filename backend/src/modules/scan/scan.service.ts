@@ -95,6 +95,7 @@ interface AnswerSheetUploadRow {
   uploaded_at: Date | null
   file_name: string | null
   file_size_bytes: number | null
+  mime_type: string | null
   stored_path: string | null
   receipt_id: string | null
   created_at: Date
@@ -131,6 +132,7 @@ const ANSWER_SHEET_UPLOAD_SELECT = `
   uploaded_at,
   file_name,
   file_size_bytes,
+  mime_type,
   stored_path,
   receipt_id,
   created_at,
@@ -435,6 +437,53 @@ export class ScanService {
       throw new Error('The uploaded file is not a valid PDF')
     }
 
+    const claimedResult = await this.pg.query<AnswerSheetUploadRow>(
+      `UPDATE answer_sheet_uploads
+       SET status = 'upload_in_progress',
+           updated_at = NOW()
+       WHERE session_token = $1
+       AND status = 'awaiting_upload'
+       AND file_name IS NULL
+       RETURNING ${ANSWER_SHEET_UPLOAD_SELECT}`,
+      [token]
+    )
+
+    if (claimedResult.rows.length === 0) {
+      const latestRow = await this.getRowByToken(token)
+
+      if (!latestRow) {
+        throw new Error('Scan session not found')
+      }
+
+      if (
+        latestRow.status === 'expired' ||
+        Date.now() >= new Date(latestRow.expires_at).getTime()
+      ) {
+        await this.pg.query(
+          `UPDATE answer_sheet_uploads
+           SET status = 'expired',
+               updated_at = NOW()
+           WHERE session_token = $1`,
+          [token]
+        )
+        throw new Error('Scan session has expired')
+      }
+
+      if (latestRow.status === 'uploaded' || latestRow.file_name) {
+        throw new Error(
+          'An answer sheet PDF has already been uploaded for this session'
+        )
+      }
+
+      if (latestRow.status === 'upload_in_progress') {
+        throw new Error(
+          'An answer sheet PDF upload is already in progress for this session'
+        )
+      }
+
+      throw new Error('The answer sheet upload session is not ready for upload')
+    }
+
     const receiptId = `receipt_${crypto.randomBytes(10).toString('hex')}`
     const uploadedAt = new Date().toISOString()
     const safeFileName = sanitizeFileName(payload.fileName)
@@ -450,33 +499,54 @@ export class ScanService {
     )}_${token.slice(0, 12)}_${safeFileName}`
     const storedPath = path.join(studentDir, storedFileName)
 
-    await fs.mkdir(studentDir, { recursive: true })
-    await fs.writeFile(storedPath, fileBuffer)
+    let updatedRow: AnswerSheetUploadRow | undefined
 
-    const updatedResult = await this.pg.query<AnswerSheetUploadRow>(
-      `UPDATE answer_sheet_uploads
-       SET status = 'uploaded',
-           uploaded_at = $2,
-           file_name = $3,
-           file_size_bytes = $4,
-           mime_type = $5,
-           stored_path = $6,
-           receipt_id = $7,
-           updated_at = NOW()
-       WHERE session_token = $1
-       RETURNING ${ANSWER_SHEET_UPLOAD_SELECT}`,
-      [
-        token,
-        uploadedAt,
-        safeFileName,
-        fileBuffer.length,
-        payload.mimeType,
-        storedPath,
-        receiptId
-      ]
-    )
+    try {
+      await fs.mkdir(studentDir, { recursive: true })
+      await fs.writeFile(storedPath, fileBuffer)
 
-    const updatedRow = updatedResult.rows[0]
+      const updatedResult = await this.pg.query<AnswerSheetUploadRow>(
+        `UPDATE answer_sheet_uploads
+         SET status = 'uploaded',
+             uploaded_at = $2,
+             file_name = $3,
+             file_size_bytes = $4,
+             mime_type = $5,
+             stored_path = $6,
+             receipt_id = $7,
+             updated_at = NOW()
+         WHERE session_token = $1
+         AND status = 'upload_in_progress'
+         RETURNING ${ANSWER_SHEET_UPLOAD_SELECT}`,
+        [
+          token,
+          uploadedAt,
+          safeFileName,
+          fileBuffer.length,
+          payload.mimeType,
+          storedPath,
+          receiptId
+        ]
+      )
+
+      updatedRow = updatedResult.rows[0]
+
+      if (!updatedRow) {
+        throw new Error('The answer sheet upload could not be finalized')
+      }
+    } catch (error) {
+      await this.pg.query(
+        `UPDATE answer_sheet_uploads
+         SET status = 'awaiting_upload',
+             updated_at = NOW()
+         WHERE session_token = $1
+         AND status = 'upload_in_progress'
+         AND file_name IS NULL`,
+        [token]
+      )
+
+      throw error
+    }
 
     return {
       session: this.mapRow(updatedRow),

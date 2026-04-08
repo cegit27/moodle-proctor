@@ -287,6 +287,9 @@ export default fp(
               : message ===
                 'An answer sheet PDF has already been uploaded for this session'
               ? 409
+              : message ===
+                'An answer sheet PDF upload is already in progress for this session'
+              ? 409
               : message.includes('Only PDF') ||
                 message.includes('empty') ||
                 message.includes('decoded') ||
