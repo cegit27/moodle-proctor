@@ -89,6 +89,18 @@ function formatUploadSummary (session) {
   return 'Waiting for the student to scan the QR code and submit the answer sheet PDF from their phone.'
 }
 
+function buildQrImageSource (session) {
+  if (session?.qrCodeDataUrl) {
+    return session.qrCodeDataUrl
+  }
+
+  if (!session?.mobileEntryUrl) {
+    return ''
+  }
+
+  return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(session.mobileEntryUrl)}`
+}
+
 function setStatusBadge (status) {
   const badge = document.getElementById('uploadSessionStatusBadge')
 
@@ -127,12 +139,29 @@ function renderUploadSession (session) {
   const receipt = document.getElementById('uploadSessionReceipt')
   const fileName = document.getElementById('uploadSessionFileName')
   const stateMessage = document.getElementById('uploadSessionStateMessage')
+  const qrImageSource = buildQrImageSource(session)
 
-  if (qrImage && session.qrCodeDataUrl) {
-    qrImage.src = session.qrCodeDataUrl
+  if (qrImage && qrImageSource) {
+    qrImage.onerror = () => {
+      qrImage.hidden = true
+      qrImage.removeAttribute('src')
+      if (qrFallback) {
+        qrFallback.textContent = 'QR code unavailable. Use the link below.'
+        qrFallback.hidden = false
+      }
+    }
+    qrImage.onload = () => {
+      if (qrFallback) {
+        qrFallback.hidden = true
+      }
+    }
+    qrImage.src = qrImageSource
     qrImage.hidden = false
     if (qrFallback) {
-      qrFallback.hidden = true
+      qrFallback.textContent = session.qrCodeDataUrl
+        ? 'Generating QR code...'
+        : 'Loading QR code...'
+      qrFallback.hidden = false
     }
   } else {
     if (qrImage) {
