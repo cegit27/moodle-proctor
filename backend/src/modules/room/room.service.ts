@@ -181,6 +181,7 @@ export interface ActiveRoomSummary {
   exam_name: string;
   course_name: string;
   student_count: number;
+  capacity: number;
   duration_minutes: number;
   created_at: Date;
   activated_at: Date | null;
@@ -328,6 +329,7 @@ export class ProctoringRoomService {
          e.exam_name,
          e.course_name,
          e.duration_minutes,
+         pr.capacity,
          pr.created_at,
          pr.activated_at,
          COUNT(DISTINCT ps.attempt_id) as student_count

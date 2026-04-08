@@ -187,9 +187,8 @@ export default fp(async (fastify: FastifyInstance) => {
         },
         required: ['token']
       }
-    }
-  },
-  handler: async (request, reply) => {
+    },
+    handler: async (request, reply) => {
     const { code } = request.params as { code: string };
     const { token } = request.body as { token: string };
 
@@ -280,7 +279,8 @@ export default fp(async (fastify: FastifyInstance) => {
 
       throw error;
     }
-  });
+  }
+});
 
   // ==========================================================================
   // POST /api/room/:code/join - Student joins a room with invite code
@@ -386,7 +386,7 @@ export default fp(async (fastify: FastifyInstance) => {
         // Database-specific error handling
         if (errorObj.code === 'ECONNREFUSED' ||
             errorObj.code === 'CONNECTION_ERROR' ||
-            errorObj.severity?.startsWith('ERROR') && errorObj routine?.startsWith('SendRequest')) {
+            (errorObj.severity?.startsWith('ERROR') && errorObj.routine?.startsWith('SendRequest'))) {
           fastify.log.error({ error }, 'Database connection failed during student join');
           return reply.code(503).send({
             success: false,
@@ -516,9 +516,8 @@ export default fp(async (fastify: FastifyInstance) => {
         },
         required: ['capacity']
       }
-    }
-  },
-  handler: async (request, reply) => {
+    },
+    handler: async (request, reply) => {
     // @ts-ignore
     const teacherId = request.user.id;
     const { id } = request.params as { id: string };
@@ -576,7 +575,8 @@ export default fp(async (fastify: FastifyInstance) => {
 
       throw error;
     }
-  });
+  }
+});
 
   // ==========================================================================
   // POST /api/room/:id/close - Close a room (teacher ends exam)
