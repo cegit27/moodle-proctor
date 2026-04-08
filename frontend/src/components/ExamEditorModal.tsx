@@ -69,6 +69,7 @@ interface ExamEditorFormState {
   description: string;
   instructions: string;
   durationMinutes: number;
+  answerSheetUploadWindowMinutes: number;
   maxWarnings: number;
   roomCapacity: number;
   enableAiProctoring: boolean;
@@ -145,6 +146,7 @@ function buildInitialState(exam?: TeacherExam | null): ExamEditorFormState {
     description: exam?.description || "",
     instructions: exam?.instructions || "",
     durationMinutes: exam?.durationMinutes || 60,
+    answerSheetUploadWindowMinutes: exam?.answerSheetUploadWindowMinutes || 30,
     maxWarnings: exam?.maxWarnings || 10,
     roomCapacity: exam?.roomCapacity || 15,
     enableAiProctoring: exam?.enableAiProctoring ?? true,
@@ -302,6 +304,7 @@ export const ExamEditorModal = ({
         description: form.description.trim() || null,
         instructions: form.instructions.trim() || null,
         durationMinutes: Number(form.durationMinutes),
+        answerSheetUploadWindowMinutes: Number(form.answerSheetUploadWindowMinutes),
         maxWarnings: Number(form.maxWarnings),
         roomCapacity: Number(form.roomCapacity),
         enableAiProctoring: form.enableAiProctoring,
@@ -401,6 +404,23 @@ export const ExamEditorModal = ({
                       min={0}
                       value={form.maxWarnings}
                       onChange={(event) => setForm((current) => ({ ...current, maxWarnings: Number(event.target.value) }))}
+                      className="input-field mt-2"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">
+                      Answer-sheet upload window (minutes)
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.answerSheetUploadWindowMinutes}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          answerSheetUploadWindowMinutes: Number(event.target.value),
+                        }))
+                      }
                       className="input-field mt-2"
                     />
                   </label>

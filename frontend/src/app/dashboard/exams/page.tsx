@@ -22,6 +22,7 @@ const featurePills = (exam: TeacherExam) => [
   exam.enableAiProctoring ? "AI on" : "AI off",
   exam.enableManualProctoring ? "Manual on" : "Manual off",
   exam.autoSubmitOnWarningLimit ? `Auto end at ${exam.maxWarnings}` : "No auto end",
+  `${exam.answerSheetUploadWindowMinutes || 30} min upload window`,
   `${exam.roomCapacity} seats`,
 ];
 
@@ -271,6 +272,14 @@ export default function ExamsPage() {
                           minute: "2-digit",
                         }).format(new Date(exam.scheduledStartAt))
                       : "No start time set"}
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Upload window
+                  </p>
+                  <p className="mt-2 text-sm text-slate-900">
+                    {exam.answerSheetUploadWindowMinutes || 30} minutes after exam submission
                   </p>
                 </div>
                 <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4">
