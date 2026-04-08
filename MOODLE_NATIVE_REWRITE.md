@@ -1,347 +1,241 @@
-# Moodle Native Rewrite
+# Moodle Teacher Dashboard Rewrite
 
-## Purpose
+## Scope To Preserve
 
-This document explains the first pass of the major rewrite needed to move the current proctoring stack toward Moodle-owned PHP pages, storage, and control surfaces.
+This rewrite is not a full Moodle replacement.
 
-The current repo still contains:
+The flow that must stay intact is:
 
-- a Fastify backend in `backend/`
-- a Next.js teacher dashboard in `frontend/`
-- an Electron student client in `manual_proctoring/`
-- a Python AI service in `ai_proctoring/`
+1. Teacher works in Moodle.
+2. Teacher selects an exam, timing, question paper, AI, proctoring, and students.
+3. Student logs into Moodle and sees assigned exams.
+4. Student takes the exam in the existing Electron app.
+5. After the exam, the QR-based answer-sheet upload flow stays exactly as it is.
 
-This pass adds the first Moodle-native foundation under `moodle-plugin/local/dscproctor/`.
+The Electron exam flow is intentionally not being replaced in this pass.
 
-## What This Pass Adds
+## What Moodle Owns Now
 
 Plugin path:
 
 - `moodle-plugin/local/dscproctor/`
 
-Files added in this pass:
+This plugin now provides:
 
-- `version.php`
-- `db/access.php`
-- `db/install.xml`
-- `settings.php`
-- `lib.php`
-- `index.php`
-- `teacher_dashboard.php`
-- `student_launch.php`
-- `classes/local/repository.php`
-- `classes/local/legacy_backend_client.php`
-- `lang/en/local_dscproctor.php`
+- a Moodle teacher dashboard
+- Moodle-side exam registration
+- Moodle-side assignment scheduling
+- Moodle-side mapping of assignments to selected students
+- a Moodle student page showing assigned exams
+- a Moodle launch page that builds the Electron handoff for the assigned student
+- hybrid settings for linking back to existing services where needed
 
-What these files do:
+This means Moodle now covers both:
 
-- create a real Moodle local plugin named `local_dscproctor`
-- define native Moodle tables for exams, rooms, attempts, and violations
-- add Moodle capabilities for dashboard access, student launch, and rewrite administration
-- add Moodle admin settings for hybrid migration
-- add native Moodle teacher and student entry pages
-- add a small PHP service wrapper that can check legacy backend health during migration
+- teacher planning and assignment
+- student visibility and launch handoff
 
-## Important Scope Note
+## What Still Stays Outside Moodle
 
-This is not the full rewrite yet.
+These parts remain in the current stack by design:
 
-It is the foundation for the rewrite.
+- live student exam session in `manual_proctoring/`
+- Electron desktop controls and kiosk behavior
+- QR answer-sheet upload flow after exam completion
+- existing backend services in `backend/`
+- AI service in `ai_proctoring/`
 
-The new plugin does not yet replace:
+That boundary is deliberate and should not be changed unless we explicitly decide to redesign the student flow.
 
-- the Electron kiosk and process-kill behavior
-- the Fastify API surface
-- the Python AI inference service
-- the Next.js dashboard features
+## Current Moodle Data Model
 
-What it does do is move the ownership boundary:
-
-- Moodle now has its own plugin
-- Moodle now has its own proctoring tables
-- Moodle now has its own pages and settings
-- later passes can move features into these surfaces instead of keeping everything in Node
-
-## Why A Local Plugin First
-
-A `local` plugin is the safest first landing zone because it lets us:
-
-- create site-level admin settings
-- define shared schema without depending on a specific activity module yet
-- add native pages for teachers and students
-- run hybrid mode while we migrate behavior from the legacy stack
-
-Later, we may split this into:
-
-- `mod_proctoredexam` for exam activity ownership
-- `local_dscproctor` for shared services, rewrite utilities, and admin controls
-- `report_*` or `block_*` plugins for monitoring and reporting views
-
-## Current Native Data Model
-
-The first pass defines these Moodle tables:
+The plugin now uses these Moodle tables:
 
 - `local_dscproctor_exam`
+- `local_dscproctor_assign`
+- `local_dscproctor_asgnusr`
 - `local_dscproctor_room`
 - `local_dscproctor_attempt`
 - `local_dscproctor_violation`
 
-These tables are the native Moodle-side replacement targets for the current PostgreSQL-backed entities in the Fastify backend.
+The teacher scheduling flow for this pass mainly relies on:
 
-### Table Intent
+### `local_dscproctor_exam`
 
-`local_dscproctor_exam`
+Stores the teacher-visible exam definition:
 
-- native registry of Moodle-side exams we want to proctor
-- keeps links to course and optional legacy exam IDs
+- course
+- exam name
+- default question paper
+- duration
+- warning limit
+- optional legacy exam ID
 
-`local_dscproctor_room`
+### `local_dscproctor_assign`
 
-- native registry of room or session ownership
-- replaces the current room control model step by step
+Stores each scheduled assignment:
 
-`local_dscproctor_attempt`
+- selected exam
+- teacher
+- assignment label
+- start and end time
+- duration
+- question paper
+- AI enabled flag
+- proctoring enabled flag
+- optional Electron room code
+- optional Electron launch URL
 
-- native attempt lifecycle storage
-- replaces the current backend attempt records step by step
+### `local_dscproctor_asgnusr`
 
-`local_dscproctor_violation`
+Stores which users were assigned to each scheduled exam.
 
-- native violation log
-- replaces the current backend violation storage step by step
+## Pages In This Pass
 
-## How To Install The Plugin
-
-### Option 1: Copy Into A Moodle Checkout
-
-Copy this folder:
-
-- `moodle-plugin/local/dscproctor`
-
-Into your Moodle codebase here:
-
-- `<moodle-root>/local/dscproctor`
-
-Then visit:
-
-- `Site administration -> Notifications`
-
-Moodle will detect the plugin and install its tables.
-
-### Option 2: Use With The Docker Moodle In This Repo
-
-This repo currently runs Moodle in Docker, but the plugin is not auto-mounted into the Moodle container yet.
-
-For now, the simplest workflow is:
-
-1. Start the Moodle stack.
-2. Copy `moodle-plugin/local/dscproctor` into the running Moodle code volume or the local Moodle checkout used by the container.
-3. Visit `Site administration -> Notifications`.
-
-If we want, the next pass can add a Docker bind mount specifically for this plugin.
-
-## Plugin Settings
-
-After installation, open:
-
-- `Site administration -> Plugins -> Local plugins -> DSC Proctor Rewrite`
-
-Available settings:
-
-- `Enable hybrid mode`
-- `Legacy backend URL`
-- `Legacy teacher dashboard URL`
-- `Legacy AI service URL`
-- `Student launch mode`
-
-### Recommended First-Pass Settings
-
-- Hybrid mode: `enabled`
-- Legacy backend URL: `http://localhost:5000`
-- Legacy teacher dashboard URL: `http://localhost:3000`
-- Legacy AI service URL: `http://localhost:8000`
-- Student launch mode: `Hybrid Electron launch`
-
-This lets Moodle own the rewrite entry points while the old services still exist.
-
-## Native Pages Added
-
-### Rewrite Landing Page
+### Landing Page
 
 Path:
 
 - `/local/dscproctor/index.php`
 
-Use this page to:
+Use it to:
 
-- confirm the plugin is installed
-- view native counts
-- check hybrid migration status
-- jump to teacher and student rewrite surfaces
+- confirm plugin install
+- view high-level counts
+- jump to teacher and student pages
+- verify hybrid configuration
 
-### Teacher Dashboard Surface
+### Teacher Dashboard
 
 Path:
 
 - `/local/dscproctor/teacher_dashboard.php`
 
-Use this page to:
+Teacher can now:
 
-- view native exam registry rows
-- view native attempts
-- view native violations
-- keep a migration bridge to the legacy teacher UI during the rewrite
+- register a Moodle-side exam record for a course
+- choose a course
+- choose an exam for that course
+- set assignment timing
+- set duration
+- set question paper
+- enable or disable AI
+- enable or disable proctoring
+- select students
+- optionally store Electron room code and launch URL
+- review created assignments
 
-### Student Launch Surface
+### Student Assigned Exams
 
 Path:
 
 - `/local/dscproctor/student_launch.php`
 
-Use this page to:
+Student can now:
 
-- expose a Moodle-owned student launch page
-- show native exam and room registry state
-- keep hybrid launch guidance while Electron behavior is still being replaced
+- log into Moodle
+- see assigned exams
+- view timing, question paper, AI, proctoring, and room code details
+- know that the real exam must still be taken in the Electron app
+- continue with the existing QR upload flow after the exam
 
-## Rewrite Strategy By Pass
+### Student Electron Handoff
 
-### Pass 1
+Path:
 
-Done in this turn.
+- `/local/dscproctor/assignment_launch.php?id=<assignmentid>`
 
-Goals:
+Student can now:
 
-- create Moodle plugin
-- create native schema
-- add native pages
-- add hybrid settings
-- establish rewrite ownership inside Moodle
+- open a Moodle-owned launch page for a single assigned exam
+- see whether the exam is ready, upcoming, closed, or missing a room code
+- launch the Electron app through the existing `proctor://room/...` deep link format
+- use a browser helper URL when one is configured
+- fall back to manual room-code entry when needed
 
-### Pass 2
+## Install Steps
 
-Recommended next.
+1. Copy `moodle-plugin/local/dscproctor` into your Moodle codebase as `<moodle-root>/local/dscproctor`.
+2. Visit `Site administration -> Notifications`.
+3. Let Moodle install or upgrade the plugin tables.
+4. Open `Site administration -> Plugins -> Local plugins -> DSC Proctor Rewrite`.
+5. Configure hybrid settings.
 
-Goals:
+Recommended settings for this pass:
 
-- add Moodle external functions and AJAX endpoints
-- move teacher read models into Moodle PHP
-- replace `/api/teacher/*` reads with Moodle-owned services
+- Hybrid mode: `enabled`
+- Legacy backend URL: your current `backend` service URL
+- Legacy teacher dashboard URL: optional while migration is in progress
+- Legacy AI service URL: your current AI service URL
+- Student launch mode: `Hybrid Electron launch`
 
-Likely files:
+## Teacher Workflow
 
-- `db/services.php`
-- `classes/external/*.php`
-- `amd/src/*.js`
+1. Open the Moodle teacher dashboard.
+2. Register an exam for a course if it does not exist yet.
+3. Create an assignment for that exam.
+4. Select the students who should take it.
+5. Set timing, duration, question paper, AI, and proctoring.
+6. Optionally save the Electron room code and launch URL.
+7. Students will then see the assignment in Moodle and can open the Electron handoff page from there.
+
+## Student Workflow
+
+1. Student logs into Moodle.
+2. Student opens the assigned exams page.
+3. Student opens the assignment launch page from Moodle.
+4. Student checks readiness, room code, and schedule.
+5. Student opens the Electron app from the Moodle handoff button.
+6. Student takes the exam in Electron.
+7. Student continues to the existing QR answer-sheet upload flow after the exam.
+
+## Important Rules For Future Passes
+
+1. Do not replace the Electron exam session in this rewrite track.
+2. Do not break the QR answer-sheet upload flow.
+3. Keep Moodle focused on teacher planning, assignment visibility, and scheduling unless we explicitly decide otherwise.
+4. Keep storing legacy identifiers where needed so Moodle can point students into the existing exam system.
+
+## Suggested Next Passes
 
 ### Pass 3
 
-Goals:
+Focus on integration, not replacement:
 
-- move room creation and room activation into Moodle
-- move attempt start and submit flows into Moodle
-- map Moodle users and course modules directly instead of inferring from the legacy backend
+- generate or sync Electron room codes from Moodle assignments
+- map Moodle assignment records to existing backend exam or room records
+- expose cleaner teacher-side details for launch readiness
 
 ### Pass 4
 
-Goals:
+Tighten student handoff:
 
-- move violation recording into Moodle-owned endpoints
-- move live monitoring metadata and room state into Moodle tables
-- treat the old backend as a shrinking compatibility bridge only
+- add a stronger Moodle-to-Electron launch instruction flow
+- optionally expose richer download or deep-link handoff options from Moodle
+- sync assignment status back from the backend if needed
 
 ### Pass 5
 
-Goals:
+Teacher operations only:
 
-- fully decommission the Fastify backend
+- move more teacher reporting into Moodle
+- bring assignment monitoring and summary views into Moodle
+- keep student exam execution in Electron unless product scope changes
 
-Or:
-
-- keep only a narrow sidecar service for AI and WebRTC that Moodle controls directly
-
-## Critical Constraint
-
-The Electron app currently does things a normal Moodle web page cannot do directly:
-
-- kiosk and fullscreen enforcement
-- encrypted local storage via Electron safe storage
-- reading the running process list
-- killing blocked desktop apps
-
-That means a true browser-only Moodle rewrite needs replacement controls, not just PHP rewrites.
-
-Realistic replacements include:
-
-- Safe Exam Browser
-- Moodle quiz access rules
-- institutional device management policy
-- browser-permission based webcam and microphone flows
-
-So the rewrite is not only a PHP rewrite. It is also a control-model rewrite.
-
-## How To Work On This Rewrite
-
-### Rule 1
-
-Do not try to delete the old system first.
-
-Use hybrid mode and move one feature slice at a time.
-
-### Rule 2
-
-Treat `moodle-plugin/local/dscproctor/` as the new source of truth for native ownership.
-
-Even if a feature still proxies to legacy services, the entry point should move into Moodle first.
-
-### Rule 3
-
-Move reads before writes.
-
-Recommended order:
-
-1. teacher read dashboards
-2. room reads and room control
-3. attempt lifecycle writes
-4. violation writes
-5. student launch
-6. monitoring orchestration
-
-### Rule 4
-
-Keep legacy IDs in the Moodle plugin tables during migration.
-
-This is why the schema already includes:
-
-- `legacyexamid`
-- `legacyroomid`
-- `legacyattemptid`
-
-They let us sync or bridge without losing traceability.
-
-## Suggested Immediate Next Tasks
-
-1. Add plugin auto-mount support to the Moodle Docker workflow.
-2. Add a `db/services.php` layer so Moodle can serve teacher dashboard data directly.
-3. Add a sync command that imports current PostgreSQL exams and attempts into Moodle plugin tables.
-4. Replace the current teacher dashboard read calls with Moodle-native endpoints.
-
-## Repo Paths To Know
+## Files To Work With
 
 - Plugin root: `moodle-plugin/local/dscproctor/`
-- Legacy backend: `backend/`
-- Legacy teacher UI: `frontend/`
-- Legacy student desktop client: `manual_proctoring/`
-- Legacy AI service: `ai_proctoring/`
+- Teacher page: `moodle-plugin/local/dscproctor/teacher_dashboard.php`
+- Student page: `moodle-plugin/local/dscproctor/student_launch.php`
+- Student handoff page: `moodle-plugin/local/dscproctor/assignment_launch.php`
+- Repository helpers: `moodle-plugin/local/dscproctor/classes/local/repository.php`
+- Assignment service: `moodle-plugin/local/dscproctor/classes/local/assignment_service.php`
+- Launch helper: `moodle-plugin/local/dscproctor/classes/local/launch_helper.php`
+- Schema: `moodle-plugin/local/dscproctor/db/install.xml`
+- Upgrade steps: `moodle-plugin/local/dscproctor/db/upgrade.php`
 
-## Status After This Pass
+## Verification Notes
 
-You now have a real Moodle plugin foundation in the repo.
+This repo environment does not currently have PHP installed, so Moodle PHP linting was not run here.
 
-That means the answer has changed from:
-
-- "there is no Moodle-native code"
-
-To:
-
-- "the rewrite has started, but major migration passes still remain"
+The changes in this pass were verified by source review only.
