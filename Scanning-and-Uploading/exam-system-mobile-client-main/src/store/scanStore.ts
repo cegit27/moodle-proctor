@@ -19,13 +19,17 @@ interface ScanStore {
 
   // ── Upload ────────────────────────────────────────────────────────────────
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
-  uploadProgress: number; // 0-100
+  uploadProgress: number;
 
   // ── Actions ───────────────────────────────────────────────────────────────
   setSession: (token: string, studentId?: string) => void;
   addPage: (dataUrl: string, thumbnail: string) => void;
   removePage: (id: string) => void;
   reorderPages: (pages: ScannedPage[]) => void;
+
+  //  NEW ACTION
+  replacePage: (id: string, dataUrl: string, thumbnail: string) => void;
+
   setUploadId: (id: string) => void;
   setUploadStatus: (status: ScanStore['uploadStatus'], progress?: number) => void;
   reset: () => void;
@@ -62,20 +66,41 @@ export const useScanStore = create<ScanStore>()(
         })),
 
       removePage: (id) =>
-        set((s) => ({ pages: s.pages.filter((p) => p.id !== id) })),
+        set((s) => ({
+          pages: s.pages.filter((p) => p.id !== id),
+        })),
 
       reorderPages: (pages) => set({ pages }),
+
+      //  Replace an existing page (used for Retake feature)
+      replacePage: (id, dataUrl, thumbnail) =>
+        set((s) => ({
+          pages: s.pages.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  dataUrl,
+                  thumbnail,
+                  capturedAt: Date.now(),
+                }
+              : p
+          ),
+        })),
 
       setUploadId: (id) => set({ uploadId: id }),
 
       setUploadStatus: (uploadStatus, progress) =>
-        set({ uploadStatus, uploadProgress: progress ?? 0 }),
+        set({
+          uploadStatus,
+          uploadProgress: progress ?? 0,
+        }),
 
       reset: () => set(initialState),
     }),
     {
       name: 'proctor-scan-session',
-      // Only persist the session token and pages between reloads
+
+      // Persist only session and pages
       partialize: (s) => ({
         sessionToken: s.sessionToken,
         studentId: s.studentId,
