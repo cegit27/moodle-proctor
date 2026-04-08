@@ -72,6 +72,7 @@ export interface UpsertTeacherExamRequest {
   autoSubmitOnWarningLimit: boolean;
   captureSnapshots: boolean;
   allowStudentRejoin: boolean;
+  answerSheetUploadWindowMinutes: number;
   scheduledStartAt?: string | null;
   scheduledEndAt?: string | null;
   questions: TeacherExamQuestion[];
@@ -99,6 +100,7 @@ export interface TeacherExam {
   autoSubmitOnWarningLimit: boolean;
   captureSnapshots: boolean;
   allowStudentRejoin: boolean;
+  answerSheetUploadWindowMinutes: number;
   questionPaperPath: string | null;
   scheduledStartAt: Date | null;
   scheduledEndAt: Date | null;

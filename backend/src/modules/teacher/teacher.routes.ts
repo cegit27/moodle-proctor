@@ -61,6 +61,7 @@ function parseExamPayload(body: Record<string, unknown>): UpsertTeacherExamReque
   const durationMinutes = Number(body.durationMinutes);
   const maxWarnings = Number(body.maxWarnings);
   const roomCapacity = Number(body.roomCapacity);
+  const answerSheetUploadWindowMinutes = Number(body.answerSheetUploadWindowMinutes ?? 30);
 
   if (!examName) {
     throw new Error('Exam name is required');
@@ -82,6 +83,13 @@ function parseExamPayload(body: Record<string, unknown>): UpsertTeacherExamReque
     throw new Error('Room capacity must be greater than 0');
   }
 
+  if (
+    !Number.isFinite(answerSheetUploadWindowMinutes) ||
+    answerSheetUploadWindowMinutes < 1
+  ) {
+    throw new Error('Answer sheet upload window must be at least 1 minute');
+  }
+
   return {
     moodleCourseId: parseOptionalNumber(body.moodleCourseId, 'Moodle course ID'),
     moodleCourseModuleId: parseOptionalNumber(body.moodleCourseModuleId, 'Moodle course module ID'),
@@ -97,6 +105,7 @@ function parseExamPayload(body: Record<string, unknown>): UpsertTeacherExamReque
     autoSubmitOnWarningLimit: body.autoSubmitOnWarningLimit !== false,
     captureSnapshots: body.captureSnapshots !== false,
     allowStudentRejoin: body.allowStudentRejoin !== false,
+    answerSheetUploadWindowMinutes,
     scheduledStartAt:
       typeof body.scheduledStartAt === 'string' && body.scheduledStartAt ? body.scheduledStartAt : null,
     scheduledEndAt:

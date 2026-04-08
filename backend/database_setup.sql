@@ -193,6 +193,57 @@ CREATE INDEX IF NOT EXISTS idx_room_students_room_id ON proctoring_room_students
 CREATE INDEX IF NOT EXISTS idx_room_students_room_email ON proctoring_room_students(room_id, student_email);
 
 -- ============================================================================
+-- MIGRATION 011: ANSWER SHEET UPLOADS
+-- ============================================================================
+
+ALTER TABLE exams
+    ADD COLUMN IF NOT EXISTS answer_sheet_upload_window_minutes INTEGER NOT NULL DEFAULT 30;
+
+CREATE TABLE IF NOT EXISTS answer_sheet_uploads (
+    id SERIAL PRIMARY KEY,
+    session_token VARCHAR(128) NOT NULL UNIQUE,
+    attempt_id INTEGER REFERENCES exam_attempts(id) ON DELETE CASCADE,
+    attempt_reference VARCHAR(255) NOT NULL UNIQUE,
+    attempt_status VARCHAR(50) NOT NULL DEFAULT 'submitted',
+    attempt_submitted_at TIMESTAMP WITH TIME ZONE,
+    attempt_submission_reason VARCHAR(100),
+    attempt_violation_count INTEGER NOT NULL DEFAULT 0,
+    exam_id INTEGER REFERENCES exams(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    room_enrollment_id INTEGER REFERENCES proctoring_room_students(id) ON DELETE SET NULL,
+    student_identifier VARCHAR(255) NOT NULL,
+    student_name VARCHAR(255) NOT NULL,
+    student_email VARCHAR(255) NOT NULL,
+    exam_name VARCHAR(255) NOT NULL,
+    course_name VARCHAR(255),
+    source VARCHAR(100) NOT NULL DEFAULT 'electron_post_exam',
+    status VARCHAR(32) NOT NULL DEFAULT 'awaiting_upload',
+    accepted_file_types JSONB NOT NULL DEFAULT '["application/pdf"]'::jsonb,
+    upload_window_minutes INTEGER NOT NULL DEFAULT 30,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    uploaded_at TIMESTAMP WITH TIME ZONE,
+    file_name TEXT,
+    file_size_bytes INTEGER,
+    mime_type VARCHAR(128),
+    stored_path TEXT,
+    receipt_id VARCHAR(128),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT valid_answer_sheet_upload_status CHECK (
+        status IN ('awaiting_upload', 'upload_in_progress', 'uploaded', 'expired')
+    ),
+    CONSTRAINT valid_answer_sheet_attempt_status CHECK (
+        attempt_status IN ('not_started', 'in_progress', 'submitted', 'terminated')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_answer_sheet_uploads_attempt_id ON answer_sheet_uploads(attempt_id);
+CREATE INDEX IF NOT EXISTS idx_answer_sheet_uploads_exam_id ON answer_sheet_uploads(exam_id);
+CREATE INDEX IF NOT EXISTS idx_answer_sheet_uploads_user_id ON answer_sheet_uploads(user_id);
+CREATE INDEX IF NOT EXISTS idx_answer_sheet_uploads_status ON answer_sheet_uploads(status, expires_at DESC);
+CREATE INDEX IF NOT EXISTS idx_answer_sheet_uploads_student_identifier ON answer_sheet_uploads(student_identifier);
+
+-- ============================================================================
 -- SCHEMA MIGRATION TABLE (for tracking applied migrations)
 -- ============================================================================
 
@@ -210,7 +261,8 @@ INSERT INTO schema_migrations (migration_id, name) VALUES
     (3, '003_security_fields.sql'),
     (4, '004_add_proctoring_rooms.sql'),
     (5, '005_add_room_id_to_violations.sql'),
-    (6, '006_add_room_enrollment.sql')
+    (6, '006_add_room_enrollment.sql'),
+    (11, '011_add_answer_sheet_uploads.sql')
 ON CONFLICT (migration_id) DO NOTHING;
 
 -- ============================================================================

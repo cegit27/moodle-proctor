@@ -124,6 +124,7 @@ export class TeacherService {
     e.auto_submit_on_warning_limit as "autoSubmitOnWarningLimit",
     e.capture_snapshots as "captureSnapshots",
     e.allow_student_rejoin as "allowStudentRejoin",
+    e.answer_sheet_upload_window_minutes as "answerSheetUploadWindowMinutes",
     e.question_paper_path as "questionPaperPath",
     e.questions_json as questions,
     e.scheduled_start_at as "scheduledStartAt",
@@ -300,6 +301,7 @@ export class TeacherService {
          auto_submit_on_warning_limit,
          capture_snapshots,
          allow_student_rejoin,
+         answer_sheet_upload_window_minutes,
          question_paper_path,
          questions_json,
          scheduled_start_at,
@@ -308,7 +310,7 @@ export class TeacherService {
        )
        VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-         $11, $12, $13, $14, $15, $16::jsonb, $17, $18, $19
+         $11, $12, $13, $14, $15, $16, $17::jsonb, $18, $19, $20
        )
        RETURNING id`,
       [
@@ -326,6 +328,7 @@ export class TeacherService {
         payload.autoSubmitOnWarningLimit,
         payload.captureSnapshots,
         payload.allowStudentRejoin,
+        payload.answerSheetUploadWindowMinutes,
         questionPaperPath,
         JSON.stringify(questions),
         payload.scheduledStartAt ?? null,
@@ -381,10 +384,11 @@ export class TeacherService {
            auto_submit_on_warning_limit = $13,
            capture_snapshots = $14,
            allow_student_rejoin = $15,
-           question_paper_path = $16,
-           questions_json = $17::jsonb,
-           scheduled_start_at = $18,
-           scheduled_end_at = $19,
+           answer_sheet_upload_window_minutes = $16,
+           question_paper_path = $17,
+           questions_json = $18::jsonb,
+           scheduled_start_at = $19,
+           scheduled_end_at = $20,
            updated_at = NOW()
        WHERE id = $1`,
       [
@@ -403,6 +407,7 @@ export class TeacherService {
         payload.autoSubmitOnWarningLimit,
         payload.captureSnapshots,
         payload.allowStudentRejoin,
+        payload.answerSheetUploadWindowMinutes,
         questionPaperPath,
         JSON.stringify(questions),
         payload.scheduledStartAt ?? null,
@@ -1169,6 +1174,10 @@ export class TeacherService {
       autoSubmitOnWarningLimit: Boolean(row.autoSubmitOnWarningLimit),
       captureSnapshots: Boolean(row.captureSnapshots),
       allowStudentRejoin: Boolean(row.allowStudentRejoin),
+      answerSheetUploadWindowMinutes: parseInt(
+        row.answerSheetUploadWindowMinutes ?? '30',
+        10
+      ),
       questionPaperPath: row.questionPaperPath ?? null,
       scheduledStartAt: row.scheduledStartAt ?? null,
       scheduledEndAt: row.scheduledEndAt ?? null,

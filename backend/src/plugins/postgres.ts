@@ -8,6 +8,7 @@ import postgres from '@fastify/postgres';
 import config from '../config';
 import logger from '../config/logger';
 import { ensureRoomSchema } from '../db/ensure-room-schema';
+import { ensureScanSchema } from '../db/ensure-scan-schema';
 
 /**
  * PostgreSQL plugin for Fastify
@@ -29,6 +30,7 @@ export default fp(async (fastify, _options) => {
       try {
         await client.query('SELECT 1');
         await ensureRoomSchema(client);
+        await ensureScanSchema(client);
         logger.info('PostgreSQL database connected successfully');
       } finally {
         client.release();
