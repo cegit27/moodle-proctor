@@ -5,9 +5,32 @@ import { useEffect, useRef, useCallback } from 'react';
 interface QRScannerProps {
   onScan: (data: string) => void;
   active?: boolean;
+  onError?: (message: string) => void;
 }
 
-export default function QRScanner({ onScan, active = true }: QRScannerProps) {
+function getCameraErrorMessage(error: unknown): string {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      return 'Camera access was denied.';
+    }
+
+    if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+      return 'No camera was found on this device.';
+    }
+
+    if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+      return 'The camera is already in use by another app.';
+    }
+  }
+
+  return 'The camera could not be started.';
+}
+
+export default function QRScanner({
+  onScan,
+  active = true,
+  onError,
+}: QRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -80,12 +103,13 @@ export default function QRScanner({ onScan, active = true }: QRScannerProps) {
         }
       } catch (err) {
         console.error('Camera error:', err);
+        onError?.(getCameraErrorMessage(err));
       }
     };
 
     start();
     return stopCamera;
-  }, [active, scanFrame, stopCamera]);
+  }, [active, onError, scanFrame, stopCamera]);
 
   return (
     <>

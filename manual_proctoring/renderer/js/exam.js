@@ -1406,6 +1406,21 @@ function finishExamUI (reason) {
   )
 }
 
+async function openPostExamUploadHandoff (reason = 'manual_submit') {
+  examSubmitted = true
+  releaseExamResources()
+
+  const uploadSession = await createAnswerSheetUploadSession(reason)
+
+  if (window.electronAPI?.openScanner && uploadSession) {
+    window.electronAPI.openScanner(uploadSession)
+    return true
+  }
+
+  finishExamUI(reason)
+  return false
+}
+
 async function createAnswerSheetUploadSession (submissionReason = 'manual_submit') {
   try {
     const attemptId = Number(currentAttempt?.id || 0) || undefined
@@ -1557,7 +1572,9 @@ async function reportViolation (type, detail, severity = 'warning') {
           `Exam terminated after reaching ${getCurrentWarningLimit()} warnings.`,
         'error'
       )
-      finishExamUI(nextAttempt.submissionReason || 'warning_limit_reached')
+      await openPostExamUploadHandoff(
+        nextAttempt.submissionReason || 'warning_limit_reached'
+      )
     } else {
       showViolationStatus({ type, detail, severity })
     }
@@ -1690,7 +1707,10 @@ async function loadExam () {
     }
 
     if (data.attempt?.status === 'submitted') {
-      finishExamUI(data.attempt.submissionReason || 'manual_submit')
+      currentAttempt = data.attempt
+      await openPostExamUploadHandoff(
+        data.attempt.submissionReason || 'manual_submit'
+      )
       return
     }
 
@@ -1797,15 +1817,7 @@ async function submitExam (reason = 'manual_submit') {
       clearReconnectCheck()
     }
 
-    const uploadSession = await createAnswerSheetUploadSession(reason)
-
-    // Send the IPC message BEFORE finishExamUI destroys the DOM
-    if (window.electronAPI?.openScanner && uploadSession) {
-      window.electronAPI.openScanner(uploadSession)
-    } else {
-      // Fallback: render completion screen if scanner bridge is unavailable
-      finishExamUI(reason)
-    }
+    await openPostExamUploadHandoff(reason)
   } catch (error) {
     console.error('Submit error:', error)
     markBackendDisconnected(

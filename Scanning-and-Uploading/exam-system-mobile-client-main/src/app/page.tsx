@@ -8,6 +8,24 @@ import { ScanSessionRequestError, validateScanSession } from '@/lib/api';
 
 type Stage = 'idle' | 'scanning' | 'processing' | 'error';
 
+function getCameraErrorMessage(error: unknown): string {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      return 'Camera access was denied.';
+    }
+
+    if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+      return 'No camera was found on this device.';
+    }
+
+    if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+      return 'The camera is already being used by another app.';
+    }
+  }
+
+  return 'The camera could not be started.';
+}
+
 export default function HomePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,16 +74,44 @@ export default function HomePage() {
   };
 
   const startScan = async () => {
+    setErrorMsg('');
+
     try {
-      const perm = await navigator.permissions.query({
-        name: 'camera' as PermissionName,
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+        },
+        audio: false,
       });
-      setCameraPermission(perm.state === 'denied' ? 'denied' : 'granted');
-      if (perm.state === 'denied') return;
-    } catch {
-      // Firefox does not support this permission query.
+
+      stream.getTracks().forEach((track) => track.stop());
+      setCameraPermission('granted');
+      setStage('scanning');
+    } catch (error) {
+      const message = getCameraErrorMessage(error);
+      const denied =
+        error instanceof DOMException &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+
+      setCameraPermission(denied ? 'denied' : 'unknown');
+      setErrorMsg(message);
+
+      if (!denied) {
+        setStage('error');
+      }
     }
-    setStage('scanning');
+  };
+
+  const handleScannerError = (message: string) => {
+    setStage('idle');
+    setErrorMsg(message);
+
+    if (/denied/i.test(message)) {
+      setCameraPermission('denied');
+      return;
+    }
+
+    setCameraPermission('unknown');
   };
 
   const retry = () => {
@@ -149,7 +195,7 @@ export default function HomePage() {
                     bg-accent text-bg tracking-wide
                     active:scale-[0.97] transition-transform shadow-lg shadow-accent/20"
                 >
-                  Open Upload Session
+                  Scan QR And Allow Camera
                 </button>
 
                 <div className="flex items-center gap-3">
@@ -166,14 +212,19 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {cameraPermission === 'denied' && <PermissionBanner />}
+              {(cameraPermission === 'denied' || errorMsg) && (
+                <PermissionBanner
+                  denied={cameraPermission === 'denied'}
+                  message={errorMsg}
+                />
+              )}
             </div>
           )}
 
           {stage === 'scanning' && (
             <div className="fixed inset-0 bg-black z-50 flex flex-col">
               <div className="relative flex-1">
-                <QRScanner onScan={handleToken} active />
+                <QRScanner onScan={handleToken} active onError={handleScannerError} />
 
                 <div className="absolute inset-0 pointer-events-none">
                   <div
@@ -304,12 +355,30 @@ function QRIllustration() {
   );
 }
 
-function PermissionBanner() {
+function PermissionBanner({
+  denied,
+  message,
+}: {
+  denied: boolean;
+  message?: string;
+}) {
   return (
     <div className="w-full bg-danger/10 border border-danger/30 rounded-xl p-4">
-      <p className="text-danger text-sm font-semibold">Camera permission denied</p>
+      <p className="text-danger text-sm font-semibold">
+        {denied ? 'Camera permission denied' : 'Camera unavailable'}
+      </p>
       <p className="text-text-secondary text-xs mt-1">
-        Go to your browser settings and allow camera access for this site.
+        {message ||
+          'Tap the scan button again to trigger the browser camera permission prompt.'}
+      </p>
+      {denied ? (
+        <p className="text-text-secondary text-xs mt-2">
+          If you previously blocked camera access, the browser may require you to re-enable it for
+          this site.
+        </p>
+      ) : null}
+      <p className="text-text-secondary text-xs mt-2">
+        The app now asks for camera access when you press the scan button.
       </p>
     </div>
   );
