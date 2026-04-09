@@ -201,6 +201,7 @@ const EXAM_CONFIG = {
   proctorFrameIntervalMs: 125,
   liveSnapshotUploadIntervalMs: 350,
   aiSignalRetryCooldownMs: 1500,
+  enableGazeTracking: false,
   aiWarningDefaultDwellMs: 0,
   aiAdvisoryDefaultDwellMs: 1500,
   aiWarningDwellMs: {
@@ -219,6 +220,23 @@ const EXAM_CONFIG = {
     'Lighting changed sharply': 1500,
     'Background movement detected': 1500
   }
+}
+
+function isAiSignalEnabled (message = '') {
+  if (
+    !EXAM_CONFIG.enableGazeTracking &&
+    message === 'Looking away from screen'
+  ) {
+    return false
+  }
+
+  return true
+}
+
+function filterAiSignals (messages = []) {
+  return Array.isArray(messages)
+    ? messages.filter(message => message && isAiSignalEnabled(message))
+    : []
 }
 
 function normalizeWarningLimit (value, fallback = 15) {
@@ -892,12 +910,8 @@ function renderTopWarningBanner () {
 }
 
 function setLiveAIWarnings (warnings = [], advisories = []) {
-  liveAiWarnings = Array.isArray(warnings)
-    ? warnings.filter(Boolean).slice(0, 3)
-    : []
-  liveAiAdvisories = Array.isArray(advisories)
-    ? advisories.filter(Boolean).slice(0, 2)
-    : []
+  liveAiWarnings = filterAiSignals(warnings).slice(0, 3)
+  liveAiAdvisories = filterAiSignals(advisories).slice(0, 2)
   renderVideoFeedState()
   renderTopWarningBanner()
 }
@@ -1388,6 +1402,18 @@ function storeLocalUploadSession (session) {
   }
 }
 
+function clearLocalUploadSession () {
+  try {
+    localStorage.removeItem('postExamUploadSession')
+  } catch (error) {
+    console.warn('Failed to clear local upload session fallback:', error)
+  }
+}
+
+function shouldOfferPostExamUpload (reason = 'manual_submit') {
+  return reason !== 'warning_limit_reached'
+}
+
 function formatDiagnosticValue (value) {
   if (value === null || value === undefined || value === '') {
     return 'n/a'
@@ -1518,6 +1544,13 @@ function finishExamUI (reason, uploadError = '', uploadDiagnostics = null) {
 async function openPostExamUploadHandoff (reason = 'manual_submit') {
   examSubmitted = true
   currentAttempt = normalizeCompletionAttempt(reason)
+
+  if (!shouldOfferPostExamUpload(reason)) {
+    clearLocalUploadSession()
+    finishExamUI(reason)
+    return false
+  }
+
   const uploadResult = await createAnswerSheetUploadSession(reason)
 
   if (window.electronAPI?.openScanner && uploadResult.session) {
@@ -2305,8 +2338,14 @@ function processIncomingAiViolations (
   incomingAdvisories = new Set()
 ) {
   const now = Date.now()
+  const filteredViolations = new Set(
+    Array.from(incomingViolations || []).filter(isAiSignalEnabled)
+  )
+  const filteredAdvisories = new Set(
+    Array.from(incomingAdvisories || []).filter(isAiSignalEnabled)
+  )
 
-  for (const message of incomingViolations) {
+  for (const message of filteredViolations) {
     if (!pendingAiViolations.has(message)) {
       pendingAiViolations.set(message, now)
     }
@@ -2350,7 +2389,7 @@ function processIncomingAiViolations (
   }
 
   for (const message of Array.from(pendingAiViolations.keys())) {
-    if (!incomingViolations.has(message)) {
+    if (!filteredViolations.has(message)) {
       pendingAiViolations.delete(message)
       activeViolations.delete(message)
       reportingAiViolations.delete(message)
@@ -2358,7 +2397,7 @@ function processIncomingAiViolations (
     }
   }
 
-  for (const message of incomingAdvisories) {
+  for (const message of filteredAdvisories) {
     if (!pendingAiAdvisories.has(message)) {
       pendingAiAdvisories.set(message, now)
     }
@@ -2405,7 +2444,7 @@ function processIncomingAiViolations (
   }
 
   for (const message of Array.from(pendingAiAdvisories.keys())) {
-    if (!incomingAdvisories.has(message)) {
+    if (!filteredAdvisories.has(message)) {
       pendingAiAdvisories.delete(message)
       activeAiAdvisories.delete(message)
       reportingAiAdvisories.delete(message)

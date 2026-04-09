@@ -8,6 +8,14 @@ import os
 
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def env_bool(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
 # ── Session ────────────────────────────────────────────────────────────────────
 CANDIDATE_ID    = "CANDIDATE-001"
 EXAM_NAME       = "General Examination"
@@ -75,18 +83,19 @@ MOTION_AREA_PCT       = _preset["MOTION_AREA_PCT"]
 SIMILARITY_THRESH     = _preset["SIMILARITY_THRESH"]
 
 # ── Feature toggles ────────────────────────────────────────────────────────────
-ENABLE_FACE_MONITOR    = True
-ENABLE_GAZE_TRACKING   = True
-ENABLE_PHONE_DETECTION = True
-ENABLE_OBJECT_DETECT   = True
+ENABLE_FACE_MONITOR    = env_bool("ENABLE_FACE_MONITOR", True)
+# Disabled for now. Set ENABLE_GAZE_TRACKING=true to turn it back on.
+ENABLE_GAZE_TRACKING   = env_bool("ENABLE_GAZE_TRACKING", False)
+ENABLE_PHONE_DETECTION = env_bool("ENABLE_PHONE_DETECTION", True)
+ENABLE_OBJECT_DETECT   = env_bool("ENABLE_OBJECT_DETECT", True)
 # These heuristic modules are noisy on real webcams and should be opt-in.
-ENABLE_AUDIO_MONITOR   = False
-ENABLE_BLINK_MONITOR   = False
-ENABLE_LIP_MONITOR     = False
-ENABLE_TAB_MONITOR     = False
-ENABLE_LIGHTING_MONITOR= False
-ENABLE_MOTION_DETECT   = False
-ENABLE_IDENTITY_VERIFY = True
+ENABLE_AUDIO_MONITOR   = env_bool("ENABLE_AUDIO_MONITOR", False)
+ENABLE_BLINK_MONITOR   = env_bool("ENABLE_BLINK_MONITOR", False)
+ENABLE_LIP_MONITOR     = env_bool("ENABLE_LIP_MONITOR", False)
+ENABLE_TAB_MONITOR     = env_bool("ENABLE_TAB_MONITOR", False)
+ENABLE_LIGHTING_MONITOR= env_bool("ENABLE_LIGHTING_MONITOR", False)
+ENABLE_MOTION_DETECT   = env_bool("ENABLE_MOTION_DETECT", False)
+ENABLE_IDENTITY_VERIFY = env_bool("ENABLE_IDENTITY_VERIFY", True)
 
 # ── Output ─────────────────────────────────────────────────────────────────────
 SCREENSHOTS_DIR        = os.path.join(MODULE_DIR, "screenshots")

@@ -625,17 +625,18 @@ button:disabled{
 }
 
 .proctor-panel-header{
- display:flex;
- justify-content:space-between;
- align-items:center;
- gap:10px;
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) auto;
+  align-items:start;
+  gap:12px;
 }
 
 .proctor-panel-title{
- margin:0;
- font-size:16px;
- font-weight:700;
- color:#101828;
+  margin:0;
+  font-size:16px;
+  line-height:1.2;
+  font-weight:700;
+  color:#101828;
 }
 
 .proctor-panel-kicker{
@@ -653,17 +654,19 @@ button:disabled{
 }
 
 .proctor-panel-actions{
- display:flex;
- align-items:center;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
   gap:8px;
 }
 
 .proctor-dock{
- position:fixed;
- right:24px;
- bottom:24px;
- width:min(310px, calc(100vw - 24px));
- z-index:1200;
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  width:min(360px, calc(100vw - 32px));
+  z-index:1200;
 }
 
 .proctor-dock.is-dragging{
@@ -678,14 +681,14 @@ button:disabled{
 }
 
 .proctor-dock-toggle{
- background:#101828;
- color:#fff;
- border:none;
- border-radius:999px;
- padding:8px 12px;
- font-size:12px;
- font-weight:700;
- white-space:nowrap;
+  background:#101828;
+  color:#fff;
+  border:none;
+  border-radius:999px;
+  padding:8px 14px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
 }
 
 .proctor-dock-toggle:hover{
@@ -693,21 +696,29 @@ button:disabled{
 }
 
 .proctor-dock.is-collapsed{
- width:min(220px, calc(100vw - 24px));
+  width:min(300px, calc(100vw - 32px));
 }
 
 .proctor-dock.is-collapsed .proctor-dock-body{
- display:none;
+  display:none;
+}
+
+.proctor-dock.is-collapsed .proctor-panel-header{
+  grid-template-columns:1fr;
+}
+
+.proctor-dock.is-collapsed .proctor-panel-actions{
+  justify-content:flex-start;
 }
 
 .video-status-badge{
- display:inline-flex;
- align-items:center;
- justify-content:center;
- min-width:72px;
- padding:6px 10px;
- border-radius:999px;
- font-size:11px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:84px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
  font-weight:700;
  letter-spacing:0.02em;
  text-transform:uppercase;
@@ -1209,24 +1220,28 @@ video{
   min-height:420px;
  }
 
- .proctor-panel-header{
-  flex-direction:column;
-  align-items:flex-start;
- }
+  .proctor-panel-header{
+   grid-template-columns:1fr;
+   align-items:flex-start;
+  }
 
- .proctor-status-grid{
-  grid-template-columns:1fr 1fr;
- }
+  .proctor-panel-actions{
+   justify-content:flex-start;
+  }
 
- .proctor-dock{
-  right:12px;
-  bottom:12px;
-  width:min(320px, calc(100vw - 24px));
- }
+  .proctor-status-grid{
+   grid-template-columns:1fr 1fr;
+  }
 
- .proctor-dock.is-collapsed{
-  width:min(240px, calc(100vw - 24px));
- }
+  .proctor-dock{
+   right:12px;
+   bottom:12px;
+   width:min(340px, calc(100vw - 24px));
+  }
+
+  .proctor-dock.is-collapsed{
+   width:min(280px, calc(100vw - 24px));
+  }
 
  .completion-card{
   width:min(92vw, 100%);

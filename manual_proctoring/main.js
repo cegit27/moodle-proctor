@@ -634,12 +634,24 @@ function createWindow () {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false,
+    fullscreen: true,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return
+    }
+
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.setFullScreen(true)
   })
 
   mainWindow.on('closed', () => {

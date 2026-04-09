@@ -17,6 +17,8 @@ const DEFAULT_UPLOAD_WINDOW_MINUTES = Math.max(
   1,
   parseInt(process.env.ANSWER_SHEET_UPLOAD_WINDOW_MINUTES || '30', 10)
 )
+const WARNING_LIMIT_UPLOAD_BLOCK_MESSAGE =
+  'Answer sheet upload is not available when the exam ends after reaching the warning limit.'
 
 function buildStudentName(row: {
   firstName?: string | null
@@ -102,6 +104,32 @@ export default fp(
                 ...requestDebug,
                 manualAttemptId: manualAttemptPayload.attempt.id,
                 manualAttemptStatus: manualAttemptPayload.attempt.status
+              }
+            })
+          }
+
+          if (
+            manualAttemptPayload.attempt.submissionReason ===
+            'warning_limit_reached'
+          ) {
+            logger.info(
+              `[scan] create-session blocked after warning limit ${JSON.stringify({
+                ...requestDebug,
+                manualAttemptId: manualAttemptPayload.attempt.id,
+                manualAttemptStatus: manualAttemptPayload.attempt.status,
+                manualSubmissionReason:
+                  manualAttemptPayload.attempt.submissionReason
+              })}`
+            )
+            return reply.code(409).send({
+              success: false,
+              error: WARNING_LIMIT_UPLOAD_BLOCK_MESSAGE,
+              debug: {
+                ...requestDebug,
+                manualAttemptId: manualAttemptPayload.attempt.id,
+                manualAttemptStatus: manualAttemptPayload.attempt.status,
+                manualSubmissionReason:
+                  manualAttemptPayload.attempt.submissionReason
               }
             })
           }
@@ -228,6 +256,23 @@ export default fp(
             error:
               'Answer sheet upload is only available after the exam is submitted',
             debug: rowDebug
+          })
+        }
+
+        if (row.submissionReason === 'warning_limit_reached') {
+          logger.info(
+            `[scan] create-session blocked after warning limit ${JSON.stringify({
+              ...rowDebug,
+              mode: roomEnrollment ? 'room' : 'auth'
+            })}`
+          )
+          return reply.code(409).send({
+            success: false,
+            error: WARNING_LIMIT_UPLOAD_BLOCK_MESSAGE,
+            debug: {
+              ...rowDebug,
+              mode: roomEnrollment ? 'room' : 'auth'
+            }
           })
         }
 

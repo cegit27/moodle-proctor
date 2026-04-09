@@ -175,6 +175,7 @@ services:
     environment:
       - SHARED_SECRET=e609b393fd614dd4a49a07a45bf63c98deaad74df7946bf89147bc44acaf6546
       - LOG_LEVEL=info
+      - ENABLE_GAZE_TRACKING=false
     volumes:
       - ./ai_proctoring:/app
       - ./ai_proctoring/screenshots:/app/screenshots
