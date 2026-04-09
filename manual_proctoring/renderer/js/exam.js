@@ -1030,12 +1030,26 @@ function renderQuestionSummary (questions = []) {
 
   questionList.innerHTML = questions
     .map(question => {
-      const questionText = escapeHtml(question.question || 'Untitled question')
+      const rawQuestionText = String(question.question || 'Untitled question')
+      const normalizedQuestionText = rawQuestionText
+        .replace(/\s*\(question paper PDF\)\s*$/i, '')
+        .trim()
+      const isDocumentOnlyQuestion =
+        Array.isArray(question.options) &&
+        question.options.length === 0 &&
+        /\(question paper PDF\)\s*$/i.test(rawQuestionText)
+      const questionText = escapeHtml(
+        isDocumentOnlyQuestion
+          ? 'Question paper PDF'
+          : normalizedQuestionText || 'Untitled question'
+      )
       const options = Array.isArray(question.options) ? question.options : []
 
       const optionMarkup =
-        options.length === 0
-          ? '<li class="summary-card-detail">No options listed.</li>'
+        isDocumentOnlyQuestion
+          ? '<li class="summary-card-detail">Read the complete question paper on the left and answer from that document.</li>'
+          : options.length === 0
+          ? '<li class="summary-card-detail">This question has no listed options.</li>'
           : options
               .map(
                 option =>

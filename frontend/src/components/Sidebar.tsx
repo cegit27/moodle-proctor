@@ -7,6 +7,7 @@ import {
   FiAlertTriangle,
   FiBookOpen,
   FiFileText,
+  FiGrid,
   FiLogOut,
   FiMonitor,
 } from "react-icons/fi";
@@ -18,6 +19,7 @@ interface NavItem {
 }
 
 export const dashboardNavItems: NavItem[] = [
+  { label: "Overview", href: "/dashboard/overview", icon: <FiGrid className="h-4 w-4" /> },
   { label: "Exams", href: "/dashboard/exams", icon: <FiBookOpen className="h-4 w-4" /> },
   { label: "Monitoring", href: "/dashboard/monitoring", icon: <FiMonitor className="h-4 w-4" /> },
   { label: "Alerts", href: "/dashboard/alerts", icon: <FiAlertTriangle className="h-4 w-4" /> },

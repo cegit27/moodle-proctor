@@ -7,8 +7,12 @@ import { useTeacherStats } from "@/hooks/useTeacherData";
 
 const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
-    title: "Monitoring",
-    subtitle: "Create a room, share the student link, and follow the live exam session."
+    title: "Overview",
+    subtitle: "Check exam readiness, live rooms, and answer-sheet progress from one place."
+  },
+  "/dashboard/overview": {
+    title: "Overview",
+    subtitle: "Check exam readiness, live rooms, and answer-sheet progress from one place."
   },
   "/dashboard/monitoring": {
     title: "Monitoring",
@@ -42,7 +46,7 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
 
 export const TopNavbar = () => {
   const pathname = usePathname();
-  const meta = pageMeta[pathname] ?? pageMeta["/dashboard/monitoring"];
+  const meta = pageMeta[pathname] ?? pageMeta["/dashboard/overview"];
   const { stats, isLoading, error } = useTeacherStats();
 
   const generatedAt = stats?.generatedAt

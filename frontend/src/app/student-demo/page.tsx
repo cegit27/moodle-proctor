@@ -366,6 +366,20 @@ export default function StudentDesktopLaunchPage() {
                   <li>At {warningLimitCopy}, the exam is submitted automatically and cannot be resumed.</li>
                 </ul>
 
+                <div className="mt-5 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4">
+                  <p className="text-sm font-semibold text-slate-900">AI proctoring checks</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    If AI proctoring is enabled for this exam, warnings may also be raised for the checks below.
+                  </p>
+                  <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                    <li>Face monitoring: keep your face visible and stay in frame.</li>
+                    <li>Gaze tracking: keep your attention on the exam screen.</li>
+                    <li>Phone detection: do not hold or use a mobile phone during the exam.</li>
+                    <li>Forbidden object detection: keep banned items away from the exam area.</li>
+                    <li>Identity verification: only the registered student may remain in view.</li>
+                  </ul>
+                </div>
+
                 <label className="mt-5 flex items-start gap-3 rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-4">
                   <input
                     type="checkbox"
@@ -374,7 +388,7 @@ export default function StudentDesktopLaunchPage() {
                     className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                   />
                   <span className="text-sm text-slate-700">
-                    I have read and understood the exam rules, warning policy, and automatic submission policy.
+                    I have read and understood the exam rules, AI warning checks, warning policy, and automatic submission policy.
                   </span>
                 </label>
               </div>

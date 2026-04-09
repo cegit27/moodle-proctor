@@ -5,6 +5,7 @@
 
 import fp from 'fastify-plugin';
 import { createReadStream } from 'fs';
+import config from '../../config';
 import { createTeacherService } from './teacher.service';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireRole } from '../../websocket/ws.auth';
@@ -125,6 +126,8 @@ function parseExamPayload(body: Record<string, unknown>): UpsertTeacherExamReque
   };
 }
 
+const examPayloadBodyLimit = Math.max(config.upload.maxFileSize, 4 * 1024 * 1024) * 2;
+
 // ============================================================================
 // Teacher Routes Plugin
 // ============================================================================
@@ -180,7 +183,8 @@ export default fp(async (fastify: FastifyInstance) => {
   });
 
   fastify.post('/api/teacher/exams', {
-    onRequest: [authMiddleware]
+    onRequest: [authMiddleware],
+    bodyLimit: examPayloadBodyLimit
   }, async (request, reply) => {
     const user = (request as any).user;
     requireRole(user, ['teacher']);
@@ -191,7 +195,9 @@ export default fp(async (fastify: FastifyInstance) => {
       return reply.code(201).send(result);
     } catch (error) {
       const message = (error as Error).message || 'Invalid exam payload';
-      return reply.code(400).send({
+      const statusCode = message.includes('exceeds') ? 413 : 400;
+
+      return reply.code(statusCode).send({
         success: false,
         error: message
       });
@@ -199,7 +205,8 @@ export default fp(async (fastify: FastifyInstance) => {
   });
 
   fastify.put('/api/teacher/exams/:id', {
-    onRequest: [authMiddleware]
+    onRequest: [authMiddleware],
+    bodyLimit: examPayloadBodyLimit
   }, async (request, reply) => {
     const user = (request as any).user;
     requireRole(user, ['teacher']);
@@ -227,7 +234,9 @@ export default fp(async (fastify: FastifyInstance) => {
         });
       }
 
-      return reply.code(400).send({
+      const statusCode = message.includes('exceeds') ? 413 : 400;
+
+      return reply.code(statusCode).send({
         success: false,
         error: message
       });
