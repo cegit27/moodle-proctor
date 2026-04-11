@@ -5,6 +5,8 @@ dist/
 build/
 out/
 coverage/
+coverage.json
+coverage.lcov
 
 # Logs
 *.log
@@ -27,6 +29,10 @@ dsc/.next/
 manual_proctoring/node_modules/
 manual_proctoring/backend/node_modules/
 manual_proctoring/backend/logs/
+tests/playwright-report/
+tests/test-results/
+*.bak
+*.backup.*
 
 ai_proctoring/venv
 ai_proctoring/screenshots/
