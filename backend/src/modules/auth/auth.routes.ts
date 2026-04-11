@@ -16,6 +16,25 @@ interface LoginBody {
   password: string;
 }
 
+function getTokenFromRequest(request: {
+  headers: { authorization?: string };
+  cookies?: { auth_token?: string };
+}): string | null {
+  const authHeader = request.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+
+  const cookieToken = request.cookies?.auth_token;
+
+  if (typeof cookieToken === 'string' && cookieToken.trim()) {
+    return cookieToken.trim();
+  }
+
+  return null;
+}
+
 // ============================================================================
 // Auth Routes
 // ============================================================================
@@ -54,9 +73,23 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // ==========================================================================
   fastify.post('/api/auth/logout', async (request, reply) => {
     try {
+      const token = getTokenFromRequest(request);
+      let userId = 0;
+
+      if (token) {
+        try {
+          const user = await authService.validateToken(fastify, token);
+          userId = user.id || 0;
+        } catch (error) {
+          logger.debug('Logout request had an invalid token, continuing with client-side logout');
+        }
+      }
+
       // In JWT stateless system, logout is handled client-side
-      // But we can log the event
-      await authService.logout(fastify, (request.user as any)?.id);
+      // But we can log the event when a valid user token is present
+      if (userId > 0) {
+        await authService.logout(fastify, userId);
+      }
 
       return reply.send({
         success: true,
@@ -77,17 +110,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
   // ==========================================================================
   fastify.get('/api/auth/me', async (request, reply) => {
     try {
-      // Extract token from Authorization header
-      const authHeader = request.headers.authorization;
+      const token = getTokenFromRequest(request);
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (!token) {
         return reply.code(401).send({
           success: false,
           error: 'Unauthorized',
         });
       }
-
-      const token = authHeader.substring(7);
 
       // Validate token and get user
       const user = await authService.validateToken(fastify, token);
